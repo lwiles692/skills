@@ -1,10 +1,28 @@
 import { spawn, spawnSync } from "node:child_process";
+import path from "node:path";
 import { ReviewError } from "./errors.mjs";
 
 const outerTimeoutGraceMs = 30_000;
 const defaultForceKillGraceMs = 2_000;
 const defaultMaxStdoutBytes = 4 * 1024 * 1024;
 const defaultMaxStderrBytes = 1024 * 1024;
+
+export function resolveAcpxBin(acpxBin, cwd) {
+  if (path.isAbsolute(acpxBin) || !/[\\/]/.test(acpxBin)) return acpxBin;
+  return path.resolve(cwd, acpxBin);
+}
+
+function quoteAgentCommandToken(token) {
+  return `"${String(token).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+export function buildAcpxAgentArgs(profile, reviewerExecutable) {
+  if (!profile.directAcpArgs) return [profile.acpxAgent];
+  const command = [reviewerExecutable, ...profile.directAcpArgs]
+    .map(quoteAgentCommandToken)
+    .join(" ");
+  return ["--agent", command];
+}
 
 export function getAcpxVersion(acpxBin, cwd) {
   const result = spawnSync(acpxBin, ["--version"], {
@@ -14,16 +32,16 @@ export function getAcpxVersion(acpxBin, cwd) {
   });
   if (result.error?.code === "ENOENT") {
     throw new ReviewError(
-      `acpx was not found at "${acpxBin}". Install acpx or pass --acpx-bin <path>.`,
+      `acpx is not installed or was not found at "${acpxBin}". Install it with: npm i -g acpx`,
       { exitCode: 7, kind: "unavailable" }
     );
   }
   if (result.error || result.status !== 0) {
     const detail = String(result.stderr ?? result.error?.message ?? "").trim();
-    throw new ReviewError(`Unable to run acpx --version.${detail ? ` ${detail}` : ""}`, {
-      exitCode: 7,
-      kind: "unavailable"
-    });
+    throw new ReviewError(
+      `Unable to run acpx --version.${detail ? ` ${detail}` : ""} Install it with: npm i -g acpx`,
+      { exitCode: 7, kind: "unavailable" }
+    );
   }
   return String(result.stdout).trim() || "unknown";
 }
@@ -110,17 +128,25 @@ export function runAcpxReview({
     String(timeoutSeconds)
   ];
   if (model) args.push("--model", model);
-  args.push(profile.acpxAgent, "exec", "--file", "-");
+  args.push(
+    ...buildAcpxAgentArgs(profile, reviewerExecutable),
+    "exec",
+    "--file",
+    "-"
+  );
 
   return new Promise((resolve, reject) => {
+    const childEnv = {
+      ...process.env,
+      ...profile.adapterEnv
+    };
+    if (profile.executableEnv) {
+      childEnv[profile.executableEnv] = reviewerExecutable;
+    }
     const child = spawn(acpxBin, args, {
       cwd: repoRoot,
       detached: process.platform !== "win32",
-      env: {
-        ...process.env,
-        ...profile.adapterEnv,
-        [profile.executableEnv]: reviewerExecutable
-      },
+      env: childEnv,
       shell: false,
       stdio: ["pipe", "pipe", "pipe"]
     });

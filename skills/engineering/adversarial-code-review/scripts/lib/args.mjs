@@ -29,7 +29,7 @@ function positiveInteger(value, name) {
 
 export function usage() {
   return `Usage:
-  node review.mjs --agent <pi|claude|codex> [options]
+  node review.mjs --agent <pi|claude|codex|kimi> [options]
 
 Options:
   --scope <auto|working-tree|branch>  Review target (default: auto)
@@ -89,7 +89,7 @@ export function parseArgs(argv) {
   if (raw.help) return { help: true };
   if (!raw.agent) {
     throw new ReviewError(
-      "--agent is required. Choose exactly one reviewer: pi, claude, or codex.",
+      "--agent is required. Choose exactly one reviewer: pi, claude, codex, or kimi.",
       { exitCode: 2, kind: "usage-error" }
     );
   }
@@ -137,4 +137,3 @@ export function parseArgs(argv) {
     acpxBin: raw["acpx-bin"] ?? "acpx"
   };
 }
-

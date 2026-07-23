@@ -6,7 +6,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs, usage } from "./lib/args.mjs";
 import { resolveReviewerExecutable } from "./lib/agents.mjs";
-import { getAcpxVersion, runAcpxReview } from "./lib/acpx.mjs";
+import {
+  getAcpxVersion,
+  resolveAcpxBin,
+  runAcpxReview
+} from "./lib/acpx.mjs";
 import { collectWarnings, planReviewUnits } from "./lib/context.mjs";
 import { asReviewError, ReviewError } from "./lib/errors.mjs";
 import {
@@ -59,6 +63,8 @@ async function main() {
     return;
   }
 
+  const acpxBin = resolveAcpxBin(options.acpxBin, options.cwd);
+  const acpxVersion = getAcpxVersion(acpxBin, process.cwd());
   const startedAt = Date.now();
   const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
   const { repoRoot, target, state } = resolveReviewTarget(options.cwd, {
@@ -80,7 +86,6 @@ async function main() {
     maxFilesPerUnit: options.maxFilesPerUnit
   });
   const warnings = collectWarnings(entries, units);
-  const acpxVersion = getAcpxVersion(options.acpxBin, repoRoot);
   const reviewerExecutable = resolveReviewerExecutable(
     options.profile,
     repoRoot
@@ -97,7 +102,7 @@ async function main() {
       schema
     });
     const response = await runAcpxReview({
-      acpxBin: options.acpxBin,
+      acpxBin,
       repoRoot,
       profile: options.profile,
       prompt,

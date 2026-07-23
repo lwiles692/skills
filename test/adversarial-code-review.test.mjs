@@ -57,26 +57,56 @@ function makeExecutable(directory, name, source = "#!/bin/sh\nexit 0\n") {
 test("requires one explicit reviewer", () => {
   assert.throws(() => parseArgs([]), /--agent is required/);
   assert.equal(parseArgs(["--agent", "claude"]).profile.id, "claude");
+  assert.equal(parseArgs(["--agent", "kimi"]).profile.id, "kimi");
+  assert.equal(parseArgs(["--agent", "kimi-code"]).profile.id, "kimi");
   assert.throws(
     () => parseArgs(["--agent", "gemini"]),
     /Unsupported reviewer/
   );
 });
 
+test("CLI exits immediately with the install command when acpx is unavailable", () => {
+  const missingAcpx = path.join(
+    os.tmpdir(),
+    `missing-acpx-${process.pid}-${Date.now()}`
+  );
+  const missingRepository = path.join(
+    os.tmpdir(),
+    `missing-repository-${process.pid}-${Date.now()}`
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      reviewScript,
+      "--agent",
+      "pi",
+      "--cwd",
+      missingRepository,
+      "--acpx-bin",
+      missingAcpx
+    ],
+    { encoding: "utf8" }
+  );
+
+  assert.equal(result.status, 7);
+  assert.match(result.stderr, /npm i -g acpx/);
+  assert.doesNotMatch(result.stderr, /Git repository|ENOENT/);
+});
+
 test("resolves every reviewer executable from PATH", () => {
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "reviewer-bin-"));
   const env = { ...process.env, PATH: `${binDir}:/usr/bin:/bin` };
 
-  for (const id of ["pi", "claude", "codex"]) {
+  for (const id of ["pi", "claude", "codex", "kimi"]) {
     const executable = makeExecutable(binDir, id);
     const profile = parseArgs(["--agent", id]).profile;
     assert.equal(resolveReviewerExecutable(profile, process.cwd(), env), executable);
   }
 });
 
-test("passes every resolved reviewer path through its adapter environment", async () => {
-  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "reviewer-env-"));
-  for (const id of ["pi", "claude", "codex"]) {
+test("configures every reviewer transport with its resolved executable", async () => {
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "reviewer env-"));
+  for (const id of ["pi", "claude", "codex", "kimi"]) {
     const profile = parseArgs(["--agent", id]).profile;
     const reviewerExecutable = makeExecutable(binDir, id);
     const fakeAcpx = makeExecutable(
@@ -84,8 +114,12 @@ test("passes every resolved reviewer path through its adapter environment", asyn
       `fake-acpx-${id}.mjs`,
       `#!/usr/bin/env node
 process.stdout.write(JSON.stringify({
-  executable: process.env[${JSON.stringify(profile.executableEnv)}] ?? "",
-  includeUserSettings: process.env.ACPX_CLAUDE_INCLUDE_USER_SETTINGS ?? ""
+  executable: ${JSON.stringify(profile.executableEnv ?? null)}
+    ? process.env[${JSON.stringify(profile.executableEnv ?? "")}] ?? ""
+    : "",
+  includeUserSettings: process.env.ACPX_CLAUDE_INCLUDE_USER_SETTINGS ?? "",
+  args: process.argv.slice(2),
+  hasUndefinedEnv: Object.hasOwn(process.env, "undefined")
 }));
 `
     );
@@ -97,10 +131,24 @@ process.stdout.write(JSON.stringify({
       timeoutSeconds: 1,
       reviewerExecutable
     });
-    assert.deepEqual(JSON.parse(response.stdout), {
-      executable: reviewerExecutable,
-      includeUserSettings: id === "claude" ? "1" : ""
-    });
+    const output = JSON.parse(response.stdout);
+    assert.equal(
+      output.executable,
+      profile.executableEnv ? reviewerExecutable : ""
+    );
+    assert.equal(output.includeUserSettings, id === "claude" ? "1" : "");
+    assert.equal(output.hasUndefinedEnv, false);
+    const execIndex = output.args.indexOf("exec");
+    if (id === "kimi") {
+      const rawAgentIndex = output.args.indexOf("--agent");
+      assert.equal(
+        output.args[rawAgentIndex + 1],
+        `"${reviewerExecutable}" "acp"`
+      );
+      assert.equal(execIndex, rawAgentIndex + 2);
+    } else {
+      assert.equal(output.args[execIndex - 1], id);
+    }
   }
 });
 
@@ -300,10 +348,10 @@ setInterval(() => {}, 1000);
 
 test("end-to-end CLI preserves the workspace and emits validated JSON", () => {
   const cwd = fixtureRepository();
-  fs.writeFileSync(path.join(cwd, "new.js"), "export const value = 1;\n");
-  const before = workspaceFingerprint(cwd);
   const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "fake-acpx-"));
-  const fakeAcpx = path.join(fakeBinDir, "fake-acpx.mjs");
+  const toolsDir = path.join(cwd, "tools");
+  fs.mkdirSync(toolsDir);
+  const fakeAcpx = path.join(toolsDir, "fake-acpx.mjs");
   const fakePi = makeExecutable(fakeBinDir, "pi");
   fs.writeFileSync(
     fakeAcpx,
@@ -348,6 +396,10 @@ if (process.argv.includes("--version")) {
 `
   );
   fs.chmodSync(fakeAcpx, 0o755);
+  git(cwd, "add", "tools/fake-acpx.mjs");
+  git(cwd, "commit", "-m", "add fixture acpx");
+  fs.writeFileSync(path.join(cwd, "new.js"), "export const value = 1;\n");
+  const before = workspaceFingerprint(cwd);
 
   const result = spawnSync(
     process.execPath,
@@ -362,7 +414,7 @@ if (process.argv.includes("--version")) {
       "--format",
       "json",
       "--acpx-bin",
-      fakeAcpx
+      "./tools/fake-acpx.mjs"
     ],
     {
       encoding: "utf8",

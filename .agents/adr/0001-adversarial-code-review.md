@@ -5,8 +5,8 @@ Date: 2026-07-23
 
 ## Context
 
-The repository needs a portable code-review skill backed by `acpx`. Its first
-reviewer backends are Pi Coding Agent, Claude Code, and Codex. The caller must
+The repository needs a portable code-review skill backed by `acpx`. Its
+reviewer backends are Pi Coding Agent, Claude Code, Codex, and Kimi. The caller must
 control which service receives the repository context, large changes must be
 reviewable without silent truncation, and future ACP reviewers should not
 require rewriting Git or review-domain logic.
@@ -16,12 +16,14 @@ require rewriting Git or review-domain logic.
 - Keep target selection, chunking, prompt construction, result validation,
   aggregation, and rendering inside the skill.
 - Treat `acpx` as a replaceable transport behind a small runner module.
-- Require exactly one explicit `--agent pi|claude|codex` per execution. Do not
+- Require exactly one explicit `--agent pi|claude|codex|kimi` per execution. Do not
   define a default reviewer or a multi-reviewer flag.
 - Use stateless `acpx <agent> exec` and `--format quiet`; validate the final
   assistant text against the skill-owned schema.
-- Resolve `pi`, `claude`, or `codex` from the caller's `PATH` and inject the
-  absolute path through the adapter-specific executable environment variable.
+- Resolve `pi`, `claude`, `codex`, or `kimi` from the caller's `PATH`. Inject
+  the absolute path through an adapter-specific executable environment
+  variable when supported; otherwise pass it through acpx's raw `--agent`
+  command so report metadata always identifies the executable that ran.
 - Select staged, unstaged, and untracked changes when the working tree is
   dirty; otherwise compare the current branch from its merge-base with an
   explicit or detected base.
@@ -37,7 +39,7 @@ require rewriting Git or review-domain logic.
 
 ## Consequences
 
-- The three initial backends receive the same evidence and output contract.
+- The four backends receive the same evidence and output contract.
 - Callers can compare reviewers by invoking the skill separately and deciding
   how to consume the independent reports.
 - Large-diff review can make several sequential model calls and therefore has

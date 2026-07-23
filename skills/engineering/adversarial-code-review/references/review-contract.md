@@ -30,8 +30,13 @@ the deletion patch and the replacement content as separate evidence.
 
 ## Runtime safety
 
+- Run `acpx --version` before repository inspection or reviewer resolution. If
+  it fails, print `npm i -g acpx` as the installation command and exit `7`
+  immediately.
+- Resolve a relative `--acpx-bin` containing path separators against `--cwd`
+  once, then use the same command for preflight and reviewer execution.
 - Resolve the selected reviewer executable from `PATH` and pass its absolute
-  path through the adapter-specific environment variable.
+  path through an adapter-specific environment variable or raw ACP command.
 - Set the ACP working directory to the repository root and allow read-only
   filesystem/search requests there. Configure non-interactive permission
   requests to fail so writes and other escalations cannot be approved.

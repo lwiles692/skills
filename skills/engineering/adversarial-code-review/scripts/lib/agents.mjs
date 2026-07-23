@@ -38,6 +38,18 @@ const profiles = new Map([
       aliases: [],
       defaultTimeoutSeconds: 900
     }
+  ],
+  [
+    "kimi",
+    {
+      id: "kimi",
+      acpxAgent: "kimi",
+      executable: "kimi",
+      directAcpArgs: ["acp"],
+      displayName: "Kimi Code CLI",
+      aliases: ["kimi-code"],
+      defaultTimeoutSeconds: 900
+    }
   ]
 ]);
 

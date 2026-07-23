@@ -1,11 +1,23 @@
 ---
 name: adversarial-code-review
-description: Run a read-only adversarial review of Git working-tree or branch changes through one explicitly selected ACP coding-agent backend. Use when the user wants to challenge an implementation, pressure-test design choices or failure modes, review uncommitted work or a branch against a base ref, or asks Pi, Claude Code, or Codex to act as an independent reviewer. Supports large-diff chunking while keeping one reviewer backend per execution.
+description: Run a read-only adversarial review of Git working-tree or branch changes through one explicitly selected ACP coding-agent backend. Use when the user wants to challenge an implementation, pressure-test design choices or failure modes, review uncommitted work or a branch against a base ref, or asks Pi, Claude Code, Codex, or Kimi to act as an independent reviewer. Supports large-diff chunking while keeping one reviewer backend per execution.
 ---
 
 # Adversarial Code Review
 
 Run the bundled script to determine the Git target, split large changes and oversized files without truncation, invoke one reviewer through `acpx`, validate its findings, and return a single report. Keep the run review-only: repository reads are allowed for context, while writes and terminal execution are denied.
+
+## Preflight
+
+Before asking for a reviewer or inspecting the repository, run:
+
+```bash
+acpx --version
+```
+
+If the command is unavailable or fails, tell the user to install it with
+`npm i -g acpx`, then stop. Do not continue the review workflow in the same
+turn.
 
 ## Required choice
 
@@ -14,17 +26,18 @@ Require the caller to name exactly one reviewer:
 - `pi`
 - `claude`
 - `codex`
+- `kimi`
 
 Do not guess or select a default reviewer. If the caller requests several reviewers, run one explicit command per reviewer and keep their reports separate.
 
-Require the selected reviewer executable to be installed on `PATH`. The runtime resolves it with `which` (`where` on Windows) and passes the absolute path to the ACP adapter.
+Require the selected reviewer executable to be installed on `PATH`. Resolve it with `which` (`where` on Windows), then force the ACP adapter to use that absolute path.
 
 ## Run the review
 
 Resolve the script path relative to this `SKILL.md`, then run it with the repository under review as the current working directory:
 
 ```bash
-node <skill-directory>/scripts/review.mjs --agent <pi|claude|codex>
+node <skill-directory>/scripts/review.mjs --agent <pi|claude|codex|kimi>
 ```
 
 Map user intent to these arguments:
@@ -51,6 +64,12 @@ node <skill-directory>/scripts/review.mjs \
   --agent codex \
   --base main \
   --format json
+```
+
+```bash
+node <skill-directory>/scripts/review.mjs \
+  --agent kimi \
+  --scope working-tree
 ```
 
 ## Handle the result
