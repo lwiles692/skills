@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adversarial Code Review"
+  short_description: "Challenge a Git change through a chosen ACP reviewer"
+  default_prompt: "Use $adversarial-code-review with the claude reviewer to challenge the current Git changes."

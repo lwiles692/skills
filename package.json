@@ -1,0 +1,14 @@
+{
+  "name": "lwiles692-skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Composable coding-agent skills",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "validate": "node scripts/validate-skills.mjs"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}
