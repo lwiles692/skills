@@ -7,11 +7,9 @@ const valueOptions = new Set([
   "scope",
   "base",
   "focus",
-  "format",
   "timeout",
   "model",
   "max-unit-bytes",
-  "max-files-per-unit",
   "cwd",
   "acpx-bin"
 ]);
@@ -36,10 +34,8 @@ Options:
   --base <ref>                        Compare HEAD from its merge-base with ref
   --focus <text>                      Weight a risk area
   --model <id>                        Request a reviewer model
-  --format <markdown|json>            Output format (default: markdown)
   --timeout <seconds>                 Per-unit timeout (default: 900)
   --max-unit-bytes <bytes>            Chunk size (default: 196608)
-  --max-files-per-unit <count>        Files per chunk (default: 12)
   --cwd <path>                        Repository to review (default: cwd)
   --acpx-bin <path>                   acpx executable (default: acpx)
   --help                              Show help
@@ -108,29 +104,16 @@ export function parseArgs(argv) {
     });
   }
 
-  const format = raw.format ?? "markdown";
-  if (!["markdown", "json"].includes(format)) {
-    throw new ReviewError("--format must be markdown or json.", {
-      exitCode: 2,
-      kind: "usage-error"
-    });
-  }
-
   return {
     help: false,
     profile: resolveAgentProfile(raw.agent),
     scope,
     base: raw.base ?? null,
     focus: raw.focus?.trim() ?? "",
-    format,
     timeoutSeconds: positiveInteger(raw.timeout ?? 900, "timeout"),
     maxUnitBytes: positiveInteger(
       raw["max-unit-bytes"] ?? 196_608,
       "max-unit-bytes"
-    ),
-    maxFilesPerUnit: positiveInteger(
-      raw["max-files-per-unit"] ?? 12,
-      "max-files-per-unit"
     ),
     cwd: path.resolve(raw.cwd ?? process.cwd()),
     model: raw.model ?? null,

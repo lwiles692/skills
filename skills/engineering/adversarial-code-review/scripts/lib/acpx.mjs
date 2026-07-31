@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
+import { parseAcpStream } from "./acp-stream.mjs";
 import { ReviewError } from "./errors.mjs";
 
 const outerTimeoutGraceMs = 30_000;
@@ -8,8 +9,12 @@ const defaultMaxStdoutBytes = 4 * 1024 * 1024;
 const defaultMaxStderrBytes = 1024 * 1024;
 
 export function resolveAcpxBin(acpxBin, cwd) {
-  if (path.isAbsolute(acpxBin) || !/[\\/]/.test(acpxBin)) return acpxBin;
-  return path.resolve(cwd, acpxBin);
+  if (!/[\\/]/.test(acpxBin)) return acpxBin;
+  if (path.isAbsolute(acpxBin)) return path.normalize(acpxBin);
+  throw new ReviewError(
+    `--acpx-bin must be a command name on PATH or an absolute path, not a repository-relative path: ${acpxBin}`,
+    { exitCode: 2, kind: "usage-error" }
+  );
 }
 
 function quoteAgentCommandToken(token) {
@@ -120,10 +125,12 @@ export function runAcpxReview({
     repoRoot,
     "--approve-reads",
     "--non-interactive-permissions",
-    "fail",
+    "deny",
     "--no-terminal",
+    // JSON is the trust boundary: it separates the reviewer's final message
+    // from adapter banners and reports permission and tool activity as events.
     "--format",
-    "quiet",
+    "json",
     "--timeout",
     String(timeoutSeconds)
   ];
@@ -268,11 +275,19 @@ export function runAcpxReview({
         return;
       }
       settled = true;
+      const stream = parseAcpStream(stdout);
+      // A permission request that reached the client was denied by policy, and
+      // some backends report that with a success status. Trust the events.
+      const permissionDenied = stream.permissionRequested || code === 5;
       if (code !== 0) {
+        if (code === 5 && stream.report.trim()) {
+          resolve({ ...stream, stdout, stderr, permissionDenied: true });
+          return;
+        }
         reject(mapFailure(code, stderr, timedOut));
         return;
       }
-      resolve({ stdout, stderr });
+      resolve({ ...stream, stdout, stderr, permissionDenied });
     });
 
     child.stdin.on("error", () => {});

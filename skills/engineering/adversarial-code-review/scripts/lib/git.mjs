@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { ReviewError } from "./errors.mjs";
 
 const maxGitBuffer = 128 * 1024 * 1024;
+const maxInlineUntrackedBytes = 24 * 1024;
 
 function runGit(cwd, args, { allowFailure = false, encoding = "utf8" } = {}) {
   const result = spawnSync("git", args, {
@@ -207,6 +208,15 @@ function untrackedEntry(repoRoot, relativePath) {
       path: relativePath,
       content: `<untracked-entry path=${JSON.stringify(relativePath)} type="non-file" />`,
       warnings: [`Reviewed metadata only for non-file entry: ${relativePath}`]
+    };
+  }
+  if (stat.size > maxInlineUntrackedBytes) {
+    return {
+      path: relativePath,
+      content: `<untracked-file path=${JSON.stringify(relativePath)} bytes="${stat.size}" inline="false" reason="size-limit" />`,
+      warnings: [
+        `Untracked file content was not inlined because it exceeds ${maxInlineUntrackedBytes} bytes; the reviewer may inspect it with repository-confined read-only tools: ${relativePath}`
+      ]
     };
   }
   const buffer = fs.readFileSync(absolute);

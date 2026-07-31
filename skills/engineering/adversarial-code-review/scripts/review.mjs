@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
 import { parseArgs, usage } from "./lib/args.mjs";
 import { resolveReviewerExecutable } from "./lib/agents.mjs";
 import {
@@ -21,40 +18,10 @@ import {
 } from "./lib/git.mjs";
 import { buildReviewPrompt } from "./lib/prompt.mjs";
 import {
-  extractJson,
-  mergeUnitResults,
-  validateUnitResult
-} from "./lib/result.mjs";
-import { renderMarkdown } from "./lib/render.mjs";
-
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const schemaPath = path.resolve(
-  scriptDir,
-  "..",
-  "references",
-  "unit-review.schema.json"
-);
-
-function printDiagnostic(error, asJson = false) {
-  if (asJson) {
-    process.stderr.write(
-      `${JSON.stringify(
-        {
-          status: "failed",
-          error: {
-            kind: error.kind,
-            message: error.message,
-            detail: error.detail
-          }
-        },
-        null,
-        2
-      )}\n`
-    );
-  } else {
-    process.stderr.write(`${error.message}\n`);
-  }
-}
+  normalizeUnitReport,
+  overallVerdict,
+  unresolvedVerdict
+} from "./lib/report.mjs";
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -66,7 +33,6 @@ async function main() {
   const acpxBin = resolveAcpxBin(options.acpxBin, options.cwd);
   const acpxVersion = getAcpxVersion(acpxBin, process.cwd());
   const startedAt = Date.now();
-  const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
   const { repoRoot, target, state } = resolveReviewTarget(options.cwd, {
     scope: options.scope,
     base: options.base
@@ -82,15 +48,14 @@ async function main() {
   const beforeFingerprint = workspaceFingerprint(repoRoot);
   const entries = collectReviewEntries(repoRoot, target, state);
   const units = planReviewUnits(entries, {
-    maxUnitBytes: options.maxUnitBytes,
-    maxFilesPerUnit: options.maxFilesPerUnit
+    maxUnitBytes: options.maxUnitBytes
   });
   const warnings = collectWarnings(entries, units);
   const reviewerExecutable = resolveReviewerExecutable(
     options.profile,
     repoRoot
   );
-  const unitResults = [];
+  const unitReports = [];
 
   for (const unit of units) {
     const prompt = buildReviewPrompt({
@@ -98,8 +63,7 @@ async function main() {
       unit,
       totalUnits: units.length,
       manifest: target.files,
-      focus: options.focus,
-      schema
+      focus: options.focus
     });
     const response = await runAcpxReview({
       acpxBin,
@@ -110,11 +74,32 @@ async function main() {
       model: options.model,
       reviewerExecutable
     });
-    unitResults.push(
-      validateUnitResult(extractJson(response.stdout), {
-        changedFiles: target.files
-      })
-    );
+    if (!response.report.trim()) {
+      throw new ReviewError(
+        `Review unit ${unit.index + 1}: the reviewer returned an empty report.`,
+        { exitCode: 5, kind: "empty-output" }
+      );
+    }
+    const { verdict, report } = normalizeUnitReport(response.report);
+    // Anything that can truncate or taint a unit costs it its vote, so a
+    // degraded run reports as unresolved instead of approving.
+    let trusted = verdict;
+    if (response.mutatingTools.length > 0) {
+      trusted = null;
+      warnings.push(
+        `Review unit ${unit.index + 1}: the reviewer ran ${response.mutatingTools.join(", ")}, which the review-only instruction forbids. Treat its report as untrusted and check the workspace.`
+      );
+    } else if (response.permissionDenied) {
+      trusted = null;
+      warnings.push(
+        `Review unit ${unit.index + 1}: the reviewer requested a disallowed permission and the request was denied, so its report may be incomplete. It cannot approve the run.`
+      );
+    } else if (!verdict) {
+      warnings.push(
+        `Review unit ${unit.index + 1}: the report does not open with "Verdict: approve" or "Verdict: needs-attention", so it cannot count toward the overall verdict. Read that unit in full.`
+      );
+    }
+    unitReports.push({ index: unit.index, verdict: trusted, report });
   }
 
   const afterFingerprint = workspaceFingerprint(repoRoot);
@@ -125,40 +110,45 @@ async function main() {
     );
   }
 
-  const aggregate = mergeUnitResults(unitResults);
-  const result = {
-    schema_version: "1.0",
-    status: "completed",
-    verdict: aggregate.verdict,
-    summary: aggregate.summary,
-    findings: aggregate.findings,
-    next_steps: aggregate.next_steps,
-    metadata: {
-      agent: options.profile.id,
-      target: publicTarget(target),
-      files: target.files.length,
-      units: units.length,
-      unit_bytes: units.map((unit) => unit.bytes),
-      warnings,
-      duration_ms: Date.now() - startedAt,
-      acpx_version: acpxVersion,
-      reviewer_executable: reviewerExecutable
-    }
-  };
-
-  if (options.format === "json") {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  } else {
-    process.stdout.write(renderMarkdown(result));
+  const verdict = overallVerdict(unitReports.map((unit) => unit.verdict));
+  const lines = [
+    "# Adversarial Code Review",
+    "",
+    `Reviewer: ${options.profile.id}`,
+    `Target: ${publicTarget(target).label}`,
+    `Overall verdict: ${verdict}`,
+    ""
+  ];
+  if (verdict === unresolvedVerdict) {
+    lines.push(
+      "At least one unit reported no readable verdict and no unit reported needs-attention. Read every unit before treating this run as approved.",
+      ""
+    );
   }
+  for (const { index, verdict: unitVerdict, report } of unitReports) {
+    if (unitReports.length > 1) {
+      lines.push(
+        `## Review unit ${index + 1} of ${unitReports.length} — ${unitVerdict ?? "no readable verdict"}`,
+        ""
+      );
+    }
+    lines.push(report || "The reviewer returned a verdict with no commentary.", "");
+  }
+  if (warnings.length > 0) {
+    lines.push("## Coverage warnings", "");
+    for (const warning of warnings) lines.push(`- ${warning}`);
+    lines.push("");
+  }
+  lines.push(
+    `Reviewed ${target.files.length} file(s) in ${units.length} unit(s) via acpx ${acpxVersion} in ${Date.now() - startedAt}ms.`,
+    ""
+  );
+
+  process.stdout.write(lines.join("\n"));
 }
 
 main().catch((cause) => {
   const error = asReviewError(cause);
-  const formatIndex = process.argv.indexOf("--format");
-  const wantsJson =
-    (formatIndex !== -1 && process.argv[formatIndex + 1] === "json") ||
-    process.argv.includes("--format=json");
-  printDiagnostic(error, wantsJson);
+  process.stderr.write(`${error.message}\n`);
   process.exitCode = error.exitCode;
 });

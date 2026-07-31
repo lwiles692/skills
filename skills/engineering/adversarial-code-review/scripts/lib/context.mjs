@@ -50,10 +50,7 @@ function segmentEntry(entry, maxUnitBytes) {
   });
 }
 
-export function planReviewUnits(
-  entries,
-  { maxUnitBytes = 196_608, maxFilesPerUnit = 12 } = {}
-) {
+export function planReviewUnits(entries, { maxUnitBytes = 196_608 } = {}) {
   const units = [];
   let current = [];
   let currentBytes = 0;
@@ -74,11 +71,11 @@ export function planReviewUnits(
     segmentEntry(entry, maxUnitBytes)
   );
 
+  // Size is the only reason to split. A file count budget would cut a small
+  // change into several model calls for no context-window reason and cost the
+  // reviewer its cross-file view of the change.
   for (const entry of segmentedEntries) {
-    const wouldExceedBytes =
-      current.length > 0 && currentBytes + entry.bytes > maxUnitBytes;
-    const wouldExceedFiles = current.length >= maxFilesPerUnit;
-    if (wouldExceedBytes || wouldExceedFiles) flush();
+    if (current.length > 0 && currentBytes + entry.bytes > maxUnitBytes) flush();
 
     current.push(entry);
     currentBytes += entry.bytes;
