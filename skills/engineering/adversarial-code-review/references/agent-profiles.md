@@ -1,24 +1,24 @@
 # External reviewer profiles
 
-The wrapper supports four explicitly selected reviewer CLIs. It starts one independent process per execution and never routes through acpx.
+Start one reviewer in the repository and require it to use `$open-code-review-delegate`. Resolve an explicit or user-installed copy first, otherwise use the bundled fallback. Materialize the selected source into a temporary standard skill directory before constructing reviewer arguments.
 
-| ID | CLI | Non-interactive isolation |
+| ID | CLI | Delegate access and review controls |
 |---|---|---|
-| `pi` | `pi` | Print mode, ephemeral session, context/skills/extensions disabled, `--no-tools` |
-| `claude` | `claude` | Print mode, plan permission mode, empty tool list, no session persistence or slash commands |
-| `codex` | `codex exec` | Temporary cwd, read-only sandbox, ephemeral run, project rules ignored, final message captured separately |
-| `kimi` | `kimi --prompt` | Temporary cwd and explicit temporary agent file with `tools: []` and `subagents: []` |
+| `pi` | `pi` | Load the delegate skill explicitly; enable `read`, `bash`, `grep`, `find`, and `ls`; disable sessions, context files, templates, and extensions. |
+| `claude` | `claude` | Use print mode, plan permission mode, read/Bash search tools, and no session persistence. |
+| `codex` | `codex exec` | Use the repository cwd, a read-only sandbox, an ephemeral run, and capture the final message separately. |
+| `kimi` | `kimi --prompt` | Add the delegate skill root through `--skills-dir` and run one prompt-mode review. |
 
 Resolve executables from `PATH`, or accept an absolute `--reviewer-bin` override. Run `--version` before repository inspection. Pass `--model` through using each CLI's native model flag.
 
-Pi, Claude, and Codex accept the packet on stdin. Kimi prompt mode requires the packet as one argv value, so reject packets over 128 KiB and tell the caller to lower `--max-unit-bytes`. Keep the default evidence budget at 64 KiB.
+Pass only a short trusted task prompt. Do not serialize repository diffs, OCR previews, rules, or source files into the CLI prompt. Let the external host agent invoke OCR Delegate and Git itself.
 
-Run reviewers in a newly created OS temporary directory, not the repository. Remove that exact temporary directory after the child exits. Bound stdout, stderr, elapsed time, and the full process group.
+Pi and Kimi need shell-capable tools to execute OCR and Git and do not expose an equivalent to Codex's OS-enforced read-only sandbox. Keep the prompt review-only and state this weaker enforcement in the user-facing skill contract.
 
 Adding a reviewer requires:
 
 1. An explicit allowlisted profile and aliases.
 2. A non-interactive one-shot mode.
-3. A reliable final-response extraction path.
-4. Tool/write isolation at least as strong as the existing profiles.
-5. Model, timeout, empty-output, nonzero-exit, temporary-cwd, and tool-isolation tests.
+3. Native access to the delegate skill.
+4. OCR, Git, and surrounding-context read capabilities.
+5. Model, timeout, empty-output, nonzero-exit, and skill-loading tests.

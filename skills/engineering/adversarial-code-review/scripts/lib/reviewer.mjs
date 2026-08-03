@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { spawn, spawnSync } from "node:child_process";
+import { materializeDelegateSkill } from "./delegate.mjs";
 import { ReviewError } from "./errors.mjs";
 
 const defaultForceKillGraceMs = 2_000;
@@ -28,46 +29,40 @@ function terminateProcessTree(child, signal) {
   }
 }
 
-function kimiAgentFile() {
-  return `---
-name: adversarial-reviewer
-description: Review a self-contained OCR packet without tools
-tools: []
-subagents: []
----
-Act as an independent, read-only code reviewer. Use only the supplied packet. Do not call tools, inspect the environment, or modify anything. Return only the requested review report.
-`;
-}
-
 export function runExternalReview({
   executable,
   profile,
   prompt,
   model,
+  repoRoot,
+  delegateSkill,
   timeoutSeconds,
   forceKillGraceMs = defaultForceKillGraceMs,
   maxStdoutBytes = defaultMaxStdoutBytes,
   maxStderrBytes = defaultMaxStderrBytes
 }) {
-  const promptBytes = Buffer.byteLength(prompt, "utf8");
-  if (profile.maxPromptBytes && promptBytes > profile.maxPromptBytes) {
-    throw new ReviewError(
-      `${profile.displayName} requires the prompt in argv, but this packet is ${promptBytes} bytes. Lower --max-unit-bytes so it stays below ${profile.maxPromptBytes} bytes.`,
-      { exitCode: 2, kind: "prompt-too-large" }
-    );
-  }
-
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "adversarial-review-"));
   const outputFile = path.join(tempDir, "last-message.md");
-  const agentFile = path.join(tempDir, "kimi-reviewer.md");
-  fs.writeFileSync(agentFile, kimiAgentFile(), { mode: 0o600 });
-  const args = profile.buildArgs({
-    model,
-    prompt,
-    tempDir,
-    outputFile,
-    agentFile
-  });
+  let effectiveDelegateSkill;
+  let effectivePrompt;
+  let args;
+  try {
+    effectiveDelegateSkill = materializeDelegateSkill(delegateSkill, tempDir);
+    effectivePrompt = prompt.replace(
+      JSON.stringify(delegateSkill.file),
+      JSON.stringify(effectiveDelegateSkill.file)
+    );
+    args = profile.buildArgs({
+      model,
+      prompt: effectivePrompt,
+      repoRoot,
+      outputFile,
+      delegateSkill: effectiveDelegateSkill
+    });
+  } catch (error) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    throw error;
+  }
   const childEnv = { ...process.env };
   for (const name of [
     "GIT_DIR",
@@ -81,7 +76,7 @@ export function runExternalReview({
 
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
-      cwd: tempDir,
+      cwd: repoRoot,
       detached: process.platform !== "win32",
       env: childEnv,
       shell: false,
@@ -99,7 +94,7 @@ export function runExternalReview({
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch {
-        // OS temp cleanup failure does not change the review result.
+        // Temporary output cleanup failure does not change the review result.
       }
     }
 
@@ -174,8 +169,6 @@ export function runExternalReview({
       clearTimeout(timer);
       if (settled) return;
       if (terminationError) {
-        // The direct child may exit before descendants. Kill the process group
-        // once more before settling so no reviewer subprocess survives.
         terminateProcessTree(child, "SIGKILL");
         finishReject(terminationError);
         return;
@@ -193,12 +186,21 @@ export function runExternalReview({
       const report = profile.readReport
         ? profile.readReport({ outputFile, stdout })
         : stdout;
+      if (!report.trim()) {
+        finishReject(
+          new ReviewError(`${profile.displayName} returned an empty report.`, {
+            exitCode: 5,
+            kind: "empty-output"
+          })
+        );
+        return;
+      }
       settled = true;
       cleanup();
       resolve({ report, stdout, stderr });
     });
 
     child.stdin.on("error", () => {});
-    child.stdin.end(profile.stdinPrompt ? prompt : "");
+    child.stdin.end(profile.stdinPrompt ? effectivePrompt : "");
   });
 }

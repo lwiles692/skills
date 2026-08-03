@@ -12,17 +12,19 @@ const profiles = new Map([
       displayName: "Pi Coding Agent",
       aliases: ["pi-agent"],
       stdinPrompt: true,
-      buildArgs({ model }) {
+      buildArgs({ model, delegateSkill }) {
         const args = [
           "--print",
           "--mode",
           "text",
           "--no-session",
-          "--no-tools",
+          "--skill",
+          delegateSkill.file,
           "--no-context-files",
-          "--no-skills",
           "--no-prompt-templates",
-          "--no-extensions"
+          "--no-extensions",
+          "--tools",
+          "read,bash,grep,find,ls"
         ];
         if (model) args.push("--model", model);
         return args;
@@ -45,9 +47,8 @@ const profiles = new Map([
           "--permission-mode",
           "plan",
           "--tools",
-          "",
+          "Bash,Read,Grep,Glob",
           "--no-session-persistence",
-          "--disable-slash-commands",
           "--no-chrome"
         ];
         if (model) args.push("--model", model);
@@ -63,18 +64,17 @@ const profiles = new Map([
       displayName: "Codex",
       aliases: [],
       stdinPrompt: true,
-      buildArgs({ model, tempDir, outputFile }) {
+      buildArgs({ model, repoRoot, outputFile }) {
         const args = [
           "exec",
           "--sandbox",
           "read-only",
           "--ephemeral",
           "--ignore-rules",
-          "--skip-git-repo-check",
           "--color",
           "never",
           "-C",
-          tempDir,
+          repoRoot,
           "-o",
           outputFile
         ];
@@ -101,15 +101,14 @@ const profiles = new Map([
       displayName: "Kimi Code CLI",
       aliases: ["kimi-code"],
       stdinPrompt: false,
-      maxPromptBytes: 128 * 1024,
-      buildArgs({ model, prompt, agentFile }) {
+      buildArgs({ model, prompt, delegateSkill }) {
         const args = [
           "--prompt",
           prompt,
           "--output-format",
           "text",
-          "--agent-file",
-          agentFile
+          "--skills-dir",
+          delegateSkill.root
         ];
         if (model) args.push("--model", model);
         return args;
@@ -135,18 +134,29 @@ export function resolveAgentProfile(value) {
   );
 }
 
-export function resolveReviewerExecutable(
-  profile,
-  override = null,
-  env = process.env
+export function resolveReviewerExecutable(profile, override = null) {
+  return resolveExecutable(override ?? profile.executable, {
+    displayName: profile.displayName,
+    unavailableMessage: `${profile.displayName} executable was not found on PATH.`
+  });
+}
+
+export function resolveExecutable(
+  requested,
+  { displayName = requested, unavailableMessage = null } = {}
 ) {
-  const requested = override ?? profile.executable;
   if (/[\\/]/.test(requested)) {
     if (!path.isAbsolute(requested)) {
       throw new ReviewError(
-        `--reviewer-bin must be a command name on PATH or an absolute path: ${requested}`,
+        `${displayName} override must be a command name on PATH or an absolute path: ${requested}`,
         { exitCode: 2, kind: "usage-error" }
       );
+    }
+    if (!fs.existsSync(requested)) {
+      throw new ReviewError(unavailableMessage ?? `${displayName} is unavailable.`, {
+        exitCode: 7,
+        kind: "unavailable"
+      });
     }
     return path.normalize(requested);
   }
@@ -154,7 +164,6 @@ export function resolveReviewerExecutable(
   const locator = process.platform === "win32" ? "where" : "which";
   const result = spawnSync(locator, [requested], {
     encoding: "utf8",
-    env,
     shell: false
   });
   const executablePath = String(result.stdout ?? "")
@@ -162,15 +171,15 @@ export function resolveReviewerExecutable(
     .map((line) => line.trim())
     .find(Boolean);
   if (result.error || result.status !== 0 || !executablePath) {
-    throw new ReviewError(
-      `${profile.displayName} executable "${requested}" was not found on PATH.`,
-      { exitCode: 7, kind: "unavailable" }
-    );
+    throw new ReviewError(unavailableMessage ?? `${displayName} is unavailable.`, {
+      exitCode: 7,
+      kind: "unavailable"
+    });
   }
   return executablePath;
 }
 
-export function getReviewerVersion(profile, executable) {
+export function getExecutableVersion(displayName, executable) {
   const result = spawnSync(executable, ["--version"], {
     encoding: "utf8",
     maxBuffer: 1024 * 1024,
@@ -180,7 +189,7 @@ export function getReviewerVersion(profile, executable) {
   if (result.error || result.status !== 0) {
     const detail = String(result.stderr ?? result.error?.message ?? "").trim();
     throw new ReviewError(
-      `Unable to run ${profile.displayName} --version.${detail ? ` ${detail}` : ""}`,
+      `Unable to run ${displayName} --version.${detail ? ` ${detail}` : ""}`,
       { exitCode: 7, kind: "unavailable" }
     );
   }
