@@ -1,29 +1,24 @@
-# Reviewer profiles
+# External reviewer profiles
 
-## Built-in profiles
+The wrapper supports four explicitly selected reviewer CLIs. It starts one independent process per execution and never routes through acpx.
 
-| ID | acpx agent | PATH executable | Adapter environment |
-|---|---|---|---|
-| `pi` | `pi` | `pi` | `PI_ACP_PI_COMMAND` |
-| `claude` | `claude` | `claude` | `CLAUDE_CODE_EXECUTABLE`; `ACPX_CLAUDE_INCLUDE_USER_SETTINGS=1` |
-| `codex` | `codex` | `codex` | `CODEX_PATH` |
-| `kimi` | Raw `--agent` command | `kimi` | Absolute executable plus `acp` argument |
+| ID | CLI | Non-interactive isolation |
+|---|---|---|
+| `pi` | `pi` | Print mode, ephemeral session, context/skills/extensions disabled, `--no-tools` |
+| `claude` | `claude` | Print mode, plan permission mode, empty tool list, no session persistence or slash commands |
+| `codex` | `codex exec` | Temporary cwd, read-only sandbox, ephemeral run, project rules ignored, final message captured separately |
+| `kimi` | `kimi --prompt` | Temporary cwd and explicit temporary agent file with `tools: []` and `subagents: []` |
 
-Resolve every executable from the current `PATH` with `which` (`where` on Windows) before acpx starts. Inject the absolute path through the adapter's documented environment variable when one exists. For Kimi, pass the absolute executable and `acp` argument through acpx's raw `--agent` option so the recorded path is the process that actually runs.
+Resolve executables from `PATH`, or accept an absolute `--reviewer-bin` override. Run `--version` before repository inspection. Pass `--model` through using each CLI's native model flag.
 
-The Claude profile also asks acpx to include Claude Code user settings. This is required when authentication or a configured API gateway is supplied through the user settings `env` block; the runtime does not read or copy those credentials itself.
+Pi, Claude, and Codex accept the packet on stdin. Kimi prompt mode requires the packet as one argv value, so reject packets over 128 KiB and tell the caller to lower `--max-unit-bytes`. Keep the default evidence budget at 64 KiB.
 
-All profiles use the same review prompt, result contract, repository-confined read-only policy, chunk planner, and renderer. Profile-specific logic is limited to executable and adapter transport metadata.
+Run reviewers in a newly created OS temporary directory, not the repository. Remove that exact temporary directory after the child exits. Bound stdout, stderr, elapsed time, and the full process group.
 
-## Adding a reviewer
+Adding a reviewer requires:
 
-1. Add a profile to `scripts/lib/agents.mjs`.
-2. Keep the CLI allowlist explicit.
-3. Confirm the acpx adapter can start in one-shot mode.
-4. Add the executable name and either an adapter path environment variable or
-   a direct ACP command using the resolved absolute path.
-5. Verify repository reads work, writes and terminal requests fail, and the workspace fingerprint stays unchanged.
-6. Verify full process-tree timeout termination and bounded output.
-7. Run schema, authentication, small-diff, and large-diff conformance tests.
-
-Do not add reviewer-specific Git target or finding logic.
+1. An explicit allowlisted profile and aliases.
+2. A non-interactive one-shot mode.
+3. A reliable final-response extraction path.
+4. Tool/write isolation at least as strong as the existing profiles.
+5. Model, timeout, empty-output, nonzero-exit, temporary-cwd, and tool-isolation tests.

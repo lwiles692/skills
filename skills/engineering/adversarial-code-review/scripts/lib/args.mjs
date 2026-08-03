@@ -4,14 +4,28 @@ import { ReviewError } from "./errors.mjs";
 
 const valueOptions = new Set([
   "agent",
-  "scope",
-  "base",
+  "from",
+  "to",
+  "commit",
   "focus",
-  "timeout",
+  "exclude",
+  "rule",
+  "background",
+  "background-file",
   "model",
+  "timeout",
+  "ocr-timeout",
   "max-unit-bytes",
   "cwd",
-  "acpx-bin"
+  "repo",
+  "ocr-bin",
+  "reviewer-bin"
+]);
+
+const shortOptions = new Map([
+  ["-c", "commit"],
+  ["-b", "background"],
+  ["-B", "background-file"]
 ]);
 
 function positiveInteger(value, name) {
@@ -29,15 +43,24 @@ export function usage() {
   return `Usage:
   node review.mjs --agent <pi|claude|codex|kimi> [options]
 
+Targets:
+  (no target flags)                   Linked worktree: workspace; otherwise: branch
+  --from <ref> --to <ref>             Review a branch/ref range
+  --commit <hash>                     Review one commit
+
 Options:
-  --scope <auto|working-tree|branch>  Review target (default: auto)
-  --base <ref>                        Compare HEAD from its merge-base with ref
   --focus <text>                      Weight a risk area
+  --exclude <patterns>                Comma-separated OCR exclusions
+  --rule <path>                       Custom OCR rule.json
+  -b, --background <text>             Business context for OCR preview
+  -B, --background-file <path>        Add business context from Markdown
   --model <id>                        Request a reviewer model
-  --timeout <seconds>                 Per-unit timeout (default: 900)
-  --max-unit-bytes <bytes>            Chunk size (default: 196608)
-  --cwd <path>                        Repository to review (default: cwd)
-  --acpx-bin <path>                   acpx executable (default: acpx)
+  --timeout <seconds>                 Per-review-unit timeout (default: 900)
+  --ocr-timeout <seconds>             Per-OCR-command timeout (default: 120)
+  --max-unit-bytes <bytes>             Packet size budget (default: 65536)
+  --cwd, --repo <path>                Repository to review (default: cwd)
+  --ocr-bin <path>                    ocr executable (default: ocr)
+  --reviewer-bin <path>               Override selected reviewer executable
   --help                              Show help
 `;
 }
@@ -50,6 +73,24 @@ export function parseArgs(argv) {
       raw.help = true;
       continue;
     }
+    if (shortOptions.has(token)) {
+      const name = shortOptions.get(token);
+      const value = argv[++index];
+      if (value == null || value === "") {
+        throw new ReviewError(`${token} requires a value.`, {
+          exitCode: 2,
+          kind: "usage-error"
+        });
+      }
+      if (raw[name] != null) {
+        throw new ReviewError(`--${name} may be provided only once.`, {
+          exitCode: 2,
+          kind: "usage-error"
+        });
+      }
+      raw[name] = value;
+      continue;
+    }
     if (!token.startsWith("--")) {
       throw new ReviewError(`Unexpected positional argument: ${token}`, {
         exitCode: 2,
@@ -58,13 +99,14 @@ export function parseArgs(argv) {
     }
 
     const equalIndex = token.indexOf("=");
-    const name = token.slice(2, equalIndex === -1 ? undefined : equalIndex);
-    if (!valueOptions.has(name)) {
-      throw new ReviewError(`Unknown option: --${name}`, {
+    const parsedName = token.slice(2, equalIndex === -1 ? undefined : equalIndex);
+    if (!valueOptions.has(parsedName)) {
+      throw new ReviewError(`Unknown option: --${parsedName}`, {
         exitCode: 2,
         kind: "usage-error"
       });
     }
+    const name = parsedName === "repo" ? "cwd" : parsedName;
     const value =
       equalIndex === -1 ? argv[++index] : token.slice(equalIndex + 1);
     if (value == null || value === "") {
@@ -83,6 +125,7 @@ export function parseArgs(argv) {
   }
 
   if (raw.help) return { help: true };
+
   if (!raw.agent) {
     throw new ReviewError(
       "--agent is required. Choose exactly one reviewer: pi, claude, codex, or kimi.",
@@ -90,33 +133,41 @@ export function parseArgs(argv) {
     );
   }
 
-  const scope = raw.scope ?? "auto";
-  if (!["auto", "working-tree", "branch"].includes(scope)) {
-    throw new ReviewError(
-      `Unsupported scope "${scope}". Choose auto, working-tree, or branch.`,
-      { exitCode: 2, kind: "usage-error" }
-    );
-  }
-  if (raw.base && scope === "working-tree") {
-    throw new ReviewError("--base cannot be combined with --scope working-tree.", {
+  if ((raw.from && !raw.to) || (raw.to && !raw.from)) {
+    throw new ReviewError("--from and --to must be provided together.", {
       exitCode: 2,
       kind: "usage-error"
     });
   }
-
+  if (raw.commit && (raw.from || raw.to)) {
+    throw new ReviewError(
+      "--commit cannot be combined with --from or --to.",
+      { exitCode: 2, kind: "usage-error" }
+    );
+  }
   return {
     help: false,
     profile: resolveAgentProfile(raw.agent),
-    scope,
-    base: raw.base ?? null,
+    from: raw.from ?? null,
+    to: raw.to ?? null,
+    commit: raw.commit ?? null,
     focus: raw.focus?.trim() ?? "",
+    exclude: raw.exclude ?? null,
+    rule: raw.rule ?? null,
+    background: raw.background ?? null,
+    backgroundFile: raw["background-file"] ?? null,
     timeoutSeconds: positiveInteger(raw.timeout ?? 900, "timeout"),
+    ocrTimeoutSeconds: positiveInteger(
+      raw["ocr-timeout"] ?? 120,
+      "ocr-timeout"
+    ),
     maxUnitBytes: positiveInteger(
-      raw["max-unit-bytes"] ?? 196_608,
+      raw["max-unit-bytes"] ?? 65_536,
       "max-unit-bytes"
     ),
     cwd: path.resolve(raw.cwd ?? process.cwd()),
     model: raw.model ?? null,
-    acpxBin: raw["acpx-bin"] ?? "acpx"
+    ocrBin: raw["ocr-bin"] ?? "ocr",
+    reviewerBin: raw["reviewer-bin"] ?? null
   };
 }

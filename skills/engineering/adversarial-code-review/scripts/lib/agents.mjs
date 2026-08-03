@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { ReviewError } from "./errors.mjs";
 
@@ -6,49 +8,112 @@ const profiles = new Map([
     "pi",
     {
       id: "pi",
-      acpxAgent: "pi",
       executable: "pi",
-      executableEnv: "PI_ACP_PI_COMMAND",
       displayName: "Pi Coding Agent",
       aliases: ["pi-agent"],
-      defaultTimeoutSeconds: 900
+      stdinPrompt: true,
+      buildArgs({ model }) {
+        const args = [
+          "--print",
+          "--mode",
+          "text",
+          "--no-session",
+          "--no-tools",
+          "--no-context-files",
+          "--no-skills",
+          "--no-prompt-templates",
+          "--no-extensions"
+        ];
+        if (model) args.push("--model", model);
+        return args;
+      }
     }
   ],
   [
     "claude",
     {
       id: "claude",
-      acpxAgent: "claude",
       executable: "claude",
-      executableEnv: "CLAUDE_CODE_EXECUTABLE",
-      adapterEnv: { ACPX_CLAUDE_INCLUDE_USER_SETTINGS: "1" },
       displayName: "Claude Code",
       aliases: ["claude-code"],
-      defaultTimeoutSeconds: 900
+      stdinPrompt: true,
+      buildArgs({ model }) {
+        const args = [
+          "--print",
+          "--output-format",
+          "text",
+          "--permission-mode",
+          "plan",
+          "--tools",
+          "",
+          "--no-session-persistence",
+          "--disable-slash-commands",
+          "--no-chrome"
+        ];
+        if (model) args.push("--model", model);
+        return args;
+      }
     }
   ],
   [
     "codex",
     {
       id: "codex",
-      acpxAgent: "codex",
       executable: "codex",
-      executableEnv: "CODEX_PATH",
       displayName: "Codex",
       aliases: [],
-      defaultTimeoutSeconds: 900
+      stdinPrompt: true,
+      buildArgs({ model, tempDir, outputFile }) {
+        const args = [
+          "exec",
+          "--sandbox",
+          "read-only",
+          "--ephemeral",
+          "--ignore-rules",
+          "--skip-git-repo-check",
+          "--color",
+          "never",
+          "-C",
+          tempDir,
+          "-o",
+          outputFile
+        ];
+        if (model) args.push("--model", model);
+        args.push("-");
+        return args;
+      },
+      readReport({ outputFile, stdout }) {
+        try {
+          const report = fs.readFileSync(outputFile, "utf8");
+          if (report.trim()) return report;
+        } catch {
+          // Fall back to stdout for older Codex CLI versions.
+        }
+        return stdout;
+      }
     }
   ],
   [
     "kimi",
     {
       id: "kimi",
-      acpxAgent: "kimi",
       executable: "kimi",
-      directAcpArgs: ["acp"],
       displayName: "Kimi Code CLI",
       aliases: ["kimi-code"],
-      defaultTimeoutSeconds: 900
+      stdinPrompt: false,
+      maxPromptBytes: 128 * 1024,
+      buildArgs({ model, prompt, agentFile }) {
+        const args = [
+          "--prompt",
+          prompt,
+          "--output-format",
+          "text",
+          "--agent-file",
+          agentFile
+        ];
+        if (model) args.push("--model", model);
+        return args;
+      }
     }
   ]
 ]);
@@ -60,7 +125,9 @@ export function listAgentIds() {
 export function resolveAgentProfile(value) {
   const normalized = String(value ?? "").trim().toLowerCase();
   for (const profile of profiles.values()) {
-    if (profile.id === normalized || profile.aliases.includes(normalized)) return profile;
+    if (profile.id === normalized || profile.aliases.includes(normalized)) {
+      return profile;
+    }
   }
   throw new ReviewError(
     `Unsupported reviewer "${value}". Choose exactly one of: ${listAgentIds().join(", ")}.`,
@@ -68,10 +135,24 @@ export function resolveAgentProfile(value) {
   );
 }
 
-export function resolveReviewerExecutable(profile, cwd, env = process.env) {
+export function resolveReviewerExecutable(
+  profile,
+  override = null,
+  env = process.env
+) {
+  const requested = override ?? profile.executable;
+  if (/[\\/]/.test(requested)) {
+    if (!path.isAbsolute(requested)) {
+      throw new ReviewError(
+        `--reviewer-bin must be a command name on PATH or an absolute path: ${requested}`,
+        { exitCode: 2, kind: "usage-error" }
+      );
+    }
+    return path.normalize(requested);
+  }
+
   const locator = process.platform === "win32" ? "where" : "which";
-  const result = spawnSync(locator, [profile.executable], {
-    cwd,
+  const result = spawnSync(locator, [requested], {
     encoding: "utf8",
     env,
     shell: false
@@ -80,12 +161,28 @@ export function resolveReviewerExecutable(profile, cwd, env = process.env) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
-
   if (result.error || result.status !== 0 || !executablePath) {
     throw new ReviewError(
-      `${profile.displayName} executable "${profile.executable}" was not found on PATH.`,
+      `${profile.displayName} executable "${requested}" was not found on PATH.`,
       { exitCode: 7, kind: "unavailable" }
     );
   }
   return executablePath;
+}
+
+export function getReviewerVersion(profile, executable) {
+  const result = spawnSync(executable, ["--version"], {
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+    shell: false,
+    timeout: 30_000
+  });
+  if (result.error || result.status !== 0) {
+    const detail = String(result.stderr ?? result.error?.message ?? "").trim();
+    throw new ReviewError(
+      `Unable to run ${profile.displayName} --version.${detail ? ` ${detail}` : ""}`,
+      { exitCode: 7, kind: "unavailable" }
+    );
+  }
+  return String(result.stdout ?? "").trim().split(/\r?\n/, 1)[0] || "unknown";
 }

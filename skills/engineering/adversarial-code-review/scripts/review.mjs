@@ -1,27 +1,32 @@
 #!/usr/bin/env node
 
 import process from "node:process";
-import { parseArgs, usage } from "./lib/args.mjs";
-import { resolveReviewerExecutable } from "./lib/agents.mjs";
 import {
-  getAcpxVersion,
-  resolveAcpxBin,
-  runAcpxReview
-} from "./lib/acpx.mjs";
+  getReviewerVersion,
+  resolveReviewerExecutable
+} from "./lib/agents.mjs";
+import { parseArgs, usage } from "./lib/args.mjs";
 import { collectWarnings, planReviewUnits } from "./lib/context.mjs";
 import { asReviewError, ReviewError } from "./lib/errors.mjs";
 import {
   collectReviewEntries,
+  ensureRepository,
   publicTarget,
-  resolveReviewTarget,
-  workspaceFingerprint
+  resolveDefaultTarget
 } from "./lib/git.mjs";
-import { buildReviewPrompt } from "./lib/prompt.mjs";
+import {
+  getOcrVersion,
+  resolveOcrBin,
+  runDelegatePreview,
+  runDelegateRules
+} from "./lib/ocr.mjs";
+import { buildReviewPacket } from "./lib/prompt.mjs";
 import {
   normalizeUnitReport,
   overallVerdict,
   unresolvedVerdict
 } from "./lib/report.mjs";
+import { runExternalReview } from "./lib/reviewer.mjs";
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -30,14 +35,29 @@ async function main() {
     return;
   }
 
-  const acpxBin = resolveAcpxBin(options.acpxBin, options.cwd);
-  const acpxVersion = getAcpxVersion(acpxBin, process.cwd());
-  const startedAt = Date.now();
-  const { repoRoot, target, state } = resolveReviewTarget(options.cwd, {
-    scope: options.scope,
-    base: options.base
-  });
+  const ocrBin = resolveOcrBin(options.ocrBin);
+  const ocrVersion = getOcrVersion(
+    ocrBin,
+    process.cwd(),
+    options.ocrTimeoutSeconds
+  );
+  const reviewerExecutable = resolveReviewerExecutable(
+    options.profile,
+    options.reviewerBin
+  );
+  const reviewerVersion = getReviewerVersion(
+    options.profile,
+    reviewerExecutable
+  );
 
+  const startedAt = Date.now();
+  const repoRoot = ensureRepository(options.cwd);
+  const targetOptions = resolveDefaultTarget(repoRoot, options);
+  const target = runDelegatePreview({
+    ocrBin,
+    repoRoot,
+    options: targetOptions
+  });
   if (target.files.length === 0) {
     throw new ReviewError(`No reviewable changes in ${target.label}.`, {
       exitCode: 4,
@@ -45,105 +65,92 @@ async function main() {
     });
   }
 
-  const beforeFingerprint = workspaceFingerprint(repoRoot);
-  const entries = collectReviewEntries(repoRoot, target, state);
+  const entries = collectReviewEntries(repoRoot, target);
   const units = planReviewUnits(entries, {
     maxUnitBytes: options.maxUnitBytes
   });
   const warnings = collectWarnings(entries, units);
-  const reviewerExecutable = resolveReviewerExecutable(
-    options.profile,
-    repoRoot
-  );
   const unitReports = [];
 
   for (const unit of units) {
-    const prompt = buildReviewPrompt({
+    const rulesMarkdown = runDelegateRules({
+      ocrBin,
+      repoRoot,
+      options: targetOptions,
+      paths: unit.entries.map((entry) => entry.path)
+    });
+    const prompt = buildReviewPacket({
       target,
       unit,
       totalUnits: units.length,
       manifest: target.files,
-      focus: options.focus
+      focus: options.focus,
+      previewMarkdown: target.markdown,
+      rulesMarkdown
     });
-    const response = await runAcpxReview({
-      acpxBin,
-      repoRoot,
+    const response = await runExternalReview({
+      executable: reviewerExecutable,
       profile: options.profile,
       prompt,
-      timeoutSeconds: options.timeoutSeconds,
       model: options.model,
-      reviewerExecutable
+      timeoutSeconds: options.timeoutSeconds
     });
     if (!response.report.trim()) {
       throw new ReviewError(
-        `Review unit ${unit.index + 1}: the reviewer returned an empty report.`,
+        `Review unit ${unit.index + 1}: ${options.profile.displayName} returned an empty report.`,
         { exitCode: 5, kind: "empty-output" }
       );
     }
-    const { verdict, report } = normalizeUnitReport(response.report);
-    // Anything that can truncate or taint a unit costs it its vote, so a
-    // degraded run reports as unresolved instead of approving.
-    let trusted = verdict;
-    if (response.mutatingTools.length > 0) {
-      trusted = null;
+    const normalized = normalizeUnitReport(response.report);
+    if (!normalized.verdict) {
       warnings.push(
-        `Review unit ${unit.index + 1}: the reviewer ran ${response.mutatingTools.join(", ")}, which the review-only instruction forbids. Treat its report as untrusted and check the workspace.`
-      );
-    } else if (response.permissionDenied) {
-      trusted = null;
-      warnings.push(
-        `Review unit ${unit.index + 1}: the reviewer requested a disallowed permission and the request was denied, so its report may be incomplete. It cannot approve the run.`
-      );
-    } else if (!verdict) {
-      warnings.push(
-        `Review unit ${unit.index + 1}: the report does not open with "Verdict: approve" or "Verdict: needs-attention", so it cannot count toward the overall verdict. Read that unit in full.`
+        `Review unit ${unit.index + 1}: the external reviewer did not open with an exact Verdict line, so this unit cannot approve the run.`
       );
     }
-    unitReports.push({ index: unit.index, verdict: trusted, report });
-  }
-
-  const afterFingerprint = workspaceFingerprint(repoRoot);
-  if (afterFingerprint !== beforeFingerprint) {
-    throw new ReviewError(
-      "The repository changed while the review was running. The report was discarded; rerun against a stable workspace.",
-      { exitCode: 6, kind: "workspace-mutated" }
-    );
+    unitReports.push({
+      index: unit.index,
+      verdict: normalized.verdict,
+      report: normalized.report
+    });
   }
 
   const verdict = overallVerdict(unitReports.map((unit) => unit.verdict));
   const lines = [
     "# Adversarial Code Review",
     "",
-    `Reviewer: ${options.profile.id}`,
+    `Reviewer: ${options.profile.id} (${reviewerVersion})`,
+    `Engine: ${ocrVersion} delegate`,
     `Target: ${publicTarget(target).label}`,
     `Overall verdict: ${verdict}`,
     ""
   ];
   if (verdict === unresolvedVerdict) {
     lines.push(
-      "At least one unit reported no readable verdict and no unit reported needs-attention. Read every unit before treating this run as approved.",
+      "At least one independent review unit had no readable verdict. Read every unit before treating this run as approved.",
       ""
     );
   }
-  for (const { index, verdict: unitVerdict, report } of unitReports) {
+  for (const unit of unitReports) {
     if (unitReports.length > 1) {
       lines.push(
-        `## Review unit ${index + 1} of ${unitReports.length} — ${unitVerdict ?? "no readable verdict"}`,
+        `## Review unit ${unit.index + 1} of ${unitReports.length} — ${unit.verdict ?? "no readable verdict"}`,
         ""
       );
     }
-    lines.push(report || "The reviewer returned a verdict with no commentary.", "");
+    lines.push(
+      unit.report || "The reviewer returned a verdict with no commentary.",
+      ""
+    );
   }
   if (warnings.length > 0) {
     lines.push("## Coverage warnings", "");
-    for (const warning of warnings) lines.push(`- ${warning}`);
+    for (const warning of [...new Set(warnings)]) lines.push(`- ${warning}`);
     lines.push("");
   }
   lines.push(
-    `Reviewed ${target.files.length} file(s) in ${units.length} unit(s) via acpx ${acpxVersion} in ${Date.now() - startedAt}ms.`,
+    `Reviewed ${target.files.length} file(s) in ${units.length} independent unit(s) with ${options.profile.displayName}; OCR supplied scope and rules. Duration: ${Date.now() - startedAt}ms.`,
     ""
   );
-
   process.stdout.write(lines.join("\n"));
 }
 

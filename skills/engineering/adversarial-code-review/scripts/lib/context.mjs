@@ -72,8 +72,8 @@ export function planReviewUnits(entries, { maxUnitBytes = 196_608 } = {}) {
   );
 
   // Size is the only reason to split. A file count budget would cut a small
-  // change into several model calls for no context-window reason and cost the
-  // reviewer its cross-file view of the change.
+  // change into several review passes for no context-window reason and cost
+  // the host reviewer its cross-file view of the change.
   for (const entry of segmentedEntries) {
     if (current.length > 0 && currentBytes + entry.bytes > maxUnitBytes) flush();
 

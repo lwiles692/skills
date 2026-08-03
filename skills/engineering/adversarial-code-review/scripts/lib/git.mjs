@@ -1,11 +1,9 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { ReviewError } from "./errors.mjs";
 
 const maxGitBuffer = 128 * 1024 * 1024;
-const maxInlineUntrackedBytes = 24 * 1024;
 
 function runGit(cwd, args, { allowFailure = false, encoding = "utf8" } = {}) {
   const result = spawnSync("git", args, {
@@ -39,8 +37,13 @@ function splitNull(value) {
   return String(value).split("\0").filter(Boolean);
 }
 
-function uniqueSorted(values) {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+function canonicalGitPath(repoRoot, value) {
+  const absolute = path.isAbsolute(value) ? value : path.resolve(repoRoot, value);
+  try {
+    return fs.realpathSync.native(absolute);
+  } catch {
+    return path.normalize(absolute);
+  }
 }
 
 export function ensureRepository(cwd) {
@@ -56,125 +59,69 @@ export function ensureRepository(cwd) {
   return String(result.stdout).trim();
 }
 
-export function getWorkingTreeState(repoRoot) {
-  const staged = splitNull(
-    text(repoRoot, ["diff", "--cached", "--name-only", "-z"])
+export function isLinkedWorktree(repoRoot) {
+  const gitDir = text(repoRoot, ["rev-parse", "--absolute-git-dir"]).trim();
+  const commonDir = text(repoRoot, ["rev-parse", "--git-common-dir"]).trim();
+  return (
+    canonicalGitPath(repoRoot, gitDir) !==
+    canonicalGitPath(repoRoot, commonDir)
   );
-  const unstaged = splitNull(text(repoRoot, ["diff", "--name-only", "-z"]));
-  const untracked = splitNull(
-    text(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z"])
+}
+
+function resolvesToCommit(repoRoot, ref) {
+  return (
+    runGit(
+      repoRoot,
+      ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`],
+      { allowFailure: true }
+    ).status === 0
   );
-  return {
-    staged,
-    unstaged,
-    untracked,
-    files: uniqueSorted([...staged, ...unstaged, ...untracked]),
-    dirty: staged.length + unstaged.length + untracked.length > 0
-  };
 }
 
 export function detectDefaultBase(repoRoot) {
   const symbolic = runGit(
     repoRoot,
-    ["symbolic-ref", "refs/remotes/origin/HEAD"],
+    ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"],
     { allowFailure: true }
   );
   if (symbolic.status === 0) {
-    const ref = String(symbolic.stdout).trim();
-    if (ref.startsWith("refs/remotes/origin/")) {
-      return ref.slice("refs/remotes/origin/".length);
+    const remoteDefault = String(symbolic.stdout).trim();
+    if (remoteDefault && resolvesToCommit(repoRoot, remoteDefault)) {
+      return remoteDefault;
     }
   }
 
-  for (const candidate of ["main", "master", "trunk"]) {
-    for (const ref of [candidate, `origin/${candidate}`]) {
-      const check = runGit(
-        repoRoot,
-        ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`],
-        { allowFailure: true }
-      );
-      if (check.status === 0) return ref;
-    }
+  for (const candidate of [
+    "main",
+    "master",
+    "trunk",
+    "origin/main",
+    "origin/master",
+    "origin/trunk"
+  ]) {
+    if (resolvesToCommit(repoRoot, candidate)) return candidate;
   }
   throw new ReviewError(
-    "Unable to detect a default base branch. Pass --base <ref> or use --scope working-tree.",
+    "Unable to detect a default base branch. Pass --from <ref> --to <ref> or --commit <hash>.",
     { exitCode: 2, kind: "usage-error" }
   );
 }
 
-function resolveBranchTarget(repoRoot, baseRef, explicit) {
-  const baseCheck = runGit(
-    repoRoot,
-    ["rev-parse", "--verify", "--quiet", `${baseRef}^{commit}`],
-    { allowFailure: true }
-  );
-  if (baseCheck.status !== 0) {
-    throw new ReviewError(`Base ref "${baseRef}" does not resolve to a commit.`, {
-      exitCode: 2,
-      kind: "usage-error"
-    });
-  }
-  const mergeBase = text(repoRoot, ["merge-base", "HEAD", baseRef]).trim();
-  const range = `${mergeBase}..HEAD`;
-  const files = splitNull(
-    text(repoRoot, ["diff", "--name-only", "-z", range])
-  );
-  const branch =
-    text(repoRoot, ["branch", "--show-current"]).trim() || "HEAD";
+export function resolveDefaultTarget(repoRoot, options) {
+  if (options.from || options.to || options.commit) return options;
+  if (isLinkedWorktree(repoRoot)) return options;
   return {
-    mode: "branch",
-    label: `branch diff against ${baseRef}`,
-    baseRef,
-    mergeBase,
-    range,
-    branch,
-    files: uniqueSorted(files),
-    explicit
+    ...options,
+    from: detectDefaultBase(repoRoot),
+    to: "HEAD"
   };
 }
 
-export function resolveReviewTarget(cwd, { scope = "auto", base = null } = {}) {
-  const repoRoot = ensureRepository(cwd);
-  const state = getWorkingTreeState(repoRoot);
-
-  if (base) {
-    return { repoRoot, target: resolveBranchTarget(repoRoot, base, true), state };
-  }
-  if (scope === "working-tree") {
-    return {
-      repoRoot,
-      target: {
-        mode: "working-tree",
-        label: "working tree diff",
-        files: state.files,
-        explicit: true
-      },
-      state
-    };
-  }
-  if (scope === "branch") {
-    return {
-      repoRoot,
-      target: resolveBranchTarget(repoRoot, detectDefaultBase(repoRoot), true),
-      state
-    };
-  }
-  if (state.dirty) {
-    return {
-      repoRoot,
-      target: {
-        mode: "working-tree",
-        label: "working tree diff",
-        files: state.files,
-        explicit: false
-      },
-      state
-    };
-  }
+function getWorkingTreeState(repoRoot) {
   return {
-    repoRoot,
-    target: resolveBranchTarget(repoRoot, detectDefaultBase(repoRoot), false),
-    state
+    untracked: new Set(
+      splitNull(text(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z"]))
+    )
   };
 }
 
@@ -210,21 +157,12 @@ function untrackedEntry(repoRoot, relativePath) {
       warnings: [`Reviewed metadata only for non-file entry: ${relativePath}`]
     };
   }
-  if (stat.size > maxInlineUntrackedBytes) {
-    return {
-      path: relativePath,
-      content: `<untracked-file path=${JSON.stringify(relativePath)} bytes="${stat.size}" inline="false" reason="size-limit" />`,
-      warnings: [
-        `Untracked file content was not inlined because it exceeds ${maxInlineUntrackedBytes} bytes; the reviewer may inspect it with repository-confined read-only tools: ${relativePath}`
-      ]
-    };
-  }
   const buffer = fs.readFileSync(absolute);
   if (isProbablyBinary(buffer)) {
     return {
       path: relativePath,
       content: `<untracked-binary path=${JSON.stringify(relativePath)} bytes="${buffer.length}" />`,
-      warnings: [`Binary content was not sent to the reviewer: ${relativePath}`]
+      warnings: [`Binary content was not included: ${relativePath}`]
     };
   }
   return {
@@ -238,120 +176,95 @@ function untrackedEntry(repoRoot, relativePath) {
   };
 }
 
-export function collectReviewEntries(repoRoot, target, state) {
-  const untracked = new Set(state.untracked);
-  return target.files.map((relativePath) => {
-    let content;
-    let warnings = [];
-    if (target.mode === "working-tree") {
-      const staged = text(repoRoot, [
-        "diff",
-        "--cached",
-        "--binary",
-        "--no-ext-diff",
-        "--submodule=diff",
-        "--",
-        relativePath
-      ]);
-      const unstaged = text(repoRoot, [
-        "diff",
-        "--binary",
-        "--no-ext-diff",
-        "--submodule=diff",
-        "--",
-        relativePath
-      ]);
-      const sections = [];
-      if (staged) {
-        sections.push(
-          `<staged-diff path=${JSON.stringify(relativePath)}>`,
-          staged,
-          "</staged-diff>"
-        );
-      }
-      if (unstaged) {
-        sections.push(
-          `<unstaged-diff path=${JSON.stringify(relativePath)}>`,
-          unstaged,
-          "</unstaged-diff>"
-        );
-      }
-      if (untracked.has(relativePath)) {
-        const entry = untrackedEntry(repoRoot, relativePath);
-        sections.push(entry.content);
-        warnings = entry.warnings;
-      }
-      content = sections.join("\n");
-    } else {
-      const diff = text(repoRoot, [
-        "diff",
-        "--binary",
-        "--no-ext-diff",
-        "--submodule=diff",
-        target.range,
-        "--",
-        relativePath
-      ]);
-      content = [
-        `<branch-diff path=${JSON.stringify(relativePath)}>`,
-        diff || "(none)",
-        "</branch-diff>"
-      ].join("\n");
-    }
+function workspaceEntry(repoRoot, file, state) {
+  if (state.untracked.has(file.path)) return untrackedEntry(repoRoot, file.path);
+  const diff = text(repoRoot, [
+    "diff",
+    "--binary",
+    "--no-ext-diff",
+    "--submodule=diff",
+    "HEAD",
+    "--",
+    file.path
+  ]);
+  return {
+    path: file.path,
+    content: [
+      `<workspace-diff path=${JSON.stringify(file.path)}>`,
+      diff || "(none)",
+      "</workspace-diff>"
+    ].join("\n"),
+    warnings: diff ? [] : [`OCR selected a tracked file with an empty HEAD diff: ${file.path}`]
+  };
+}
+
+function rangeEntry(repoRoot, target, file) {
+  const diff = text(repoRoot, [
+    "diff",
+    "--binary",
+    "--no-ext-diff",
+    "--submodule=diff",
+    `${target.mergeBase}..${target.to}`,
+    "--",
+    file.path
+  ]);
+  return {
+    path: file.path,
+    content: [
+      `<range-diff path=${JSON.stringify(file.path)}>`,
+      diff || "(none)",
+      "</range-diff>"
+    ].join("\n"),
+    warnings: diff ? [] : [`OCR selected a file with an empty range diff: ${file.path}`]
+  };
+}
+
+function commitEntry(repoRoot, target, file) {
+  const diff = text(repoRoot, [
+    "show",
+    "--format=",
+    "--binary",
+    "--no-ext-diff",
+    "--submodule=diff",
+    target.commit,
+    "--",
+    file.path
+  ]);
+  return {
+    path: file.path,
+    content: [
+      `<commit-diff path=${JSON.stringify(file.path)}>`,
+      diff || "(none)",
+      "</commit-diff>"
+    ].join("\n"),
+    warnings: diff ? [] : [`OCR selected a file with an empty commit diff: ${file.path}`]
+  };
+}
+
+export function collectReviewEntries(repoRoot, target) {
+  const state = target.mode === "workspace" ? getWorkingTreeState(repoRoot) : null;
+  return target.files.map((file) => {
+    const entry =
+      target.mode === "workspace"
+        ? workspaceEntry(repoRoot, file, state)
+        : target.mode === "range"
+          ? rangeEntry(repoRoot, target, file)
+          : commitEntry(repoRoot, target, file);
     return {
-      path: relativePath,
-      content,
-      bytes: Buffer.byteLength(content, "utf8"),
-      warnings
+      ...entry,
+      status: file.status,
+      bytes: Buffer.byteLength(entry.content, "utf8")
     };
   });
 }
 
-export function workspaceFingerprint(repoRoot) {
-  const hash = crypto.createHash("sha256");
-  hash.update(text(repoRoot, ["status", "--porcelain=v1", "-z"]));
-  hash.update(
-    text(repoRoot, [
-      "diff",
-      "--cached",
-      "--binary",
-      "--no-ext-diff",
-      "--submodule=diff"
-    ])
-  );
-  hash.update(
-    text(repoRoot, [
-      "diff",
-      "--binary",
-      "--no-ext-diff",
-      "--submodule=diff"
-    ])
-  );
-
-  for (const relativePath of getWorkingTreeState(repoRoot).untracked) {
-    hash.update(relativePath);
-    const absolute = path.join(repoRoot, relativePath);
-    try {
-      const stat = fs.lstatSync(absolute);
-      if (stat.isSymbolicLink()) hash.update(fs.readlinkSync(absolute));
-      else if (stat.isFile()) hash.update(fs.readFileSync(absolute));
-      else hash.update(`${stat.mode}:${stat.size}`);
-    } catch {
-      hash.update("<unreadable>");
-    }
-  }
-  return hash.digest("hex");
-}
-
 export function publicTarget(target) {
-  if (target.mode === "working-tree") {
-    return { mode: target.mode, label: target.label };
-  }
   return {
     mode: target.mode,
     label: target.label,
-    base_ref: target.baseRef,
-    merge_base: target.mergeBase,
-    branch: target.branch
+    from: target.from,
+    to: target.to,
+    commit: target.commit,
+    merge_base: target.mergeBase
   };
 }

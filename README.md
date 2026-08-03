@@ -6,7 +6,7 @@ Composable skills for coding agents.
 
 ### Engineering
 
-- `adversarial-code-review` — challenge a Git change with one explicitly selected ACP reviewer (`pi`, `claude`, or `codex`).
+- `adversarial-code-review` — challenge Git changes with OCR scope/rules and one external Pi, Claude, Codex, or Kimi reviewer.
 
 ## Layout
 
