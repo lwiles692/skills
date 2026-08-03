@@ -32,7 +32,7 @@ function terminateProcessTree(child, signal) {
 export function runExternalReview({
   executable,
   profile,
-  prompt,
+  buildPrompt,
   model,
   repoRoot,
   delegateSkill,
@@ -48,10 +48,7 @@ export function runExternalReview({
   let args;
   try {
     effectiveDelegateSkill = materializeDelegateSkill(delegateSkill, tempDir);
-    effectivePrompt = prompt.replace(
-      JSON.stringify(delegateSkill.file),
-      JSON.stringify(effectiveDelegateSkill.file)
-    );
+    effectivePrompt = buildPrompt(effectiveDelegateSkill);
     args = profile.buildArgs({
       model,
       prompt: effectivePrompt,

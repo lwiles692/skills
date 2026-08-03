@@ -57,15 +57,15 @@ async function main() {
   getExecutableVersion(options.profile.displayName, reviewerExecutable);
   const delegateSkill = resolveDelegateSkill(options.delegateSkill);
   const repoRoot = ensureRepository(options.cwd);
-  const prompt = buildReviewPrompt({
-    options,
-    delegateSkill,
-    ocrBin: ocrExecutable
-  });
   const response = await runExternalReview({
     executable: reviewerExecutable,
     profile: options.profile,
-    prompt,
+    buildPrompt: (effectiveDelegateSkill) =>
+      buildReviewPrompt({
+        options,
+        delegateSkill: effectiveDelegateSkill,
+        ocrBin: ocrExecutable
+      }),
     model: options.model,
     repoRoot,
     delegateSkill,

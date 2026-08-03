@@ -294,6 +294,7 @@ test("end-to-end wrapper lets every external reviewer drive delegate mode", () =
   const expectedReport =
     "Verdict: needs-attention\n\nFull review comments:\n\n- [P2] Preserve rollback — app.js:1-1\n  The change needs a rollback guard.\n";
   const reviewer = fakeReviewer(binDir, { repo, report: expectedReport });
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delegate-$&-"));
 
   for (const agent of listAgentIds()) {
     const result = run(repo, process.execPath, [
@@ -308,7 +309,7 @@ test("end-to-end wrapper lets every external reviewer drive delegate mode", () =
       reviewer,
       "--delegate-skill",
       delegateSkill
-    ]);
+    ], { env: { ...process.env, TMPDIR: tmpDir } });
     assert.equal(result.status, 0, `${agent}: ${result.stderr}`);
     assert.equal(result.stdout, expectedReport);
   }
