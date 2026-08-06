@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harden Remote Linux"
+  short_description: "Safely harden a remote systemd Linux server"
+  default_prompt: "Use $harden-remote-linux to harden a remote Linux server with safe rollbacks and connection checks."

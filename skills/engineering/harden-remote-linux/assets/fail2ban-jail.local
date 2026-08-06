@@ -1,0 +1,14 @@
+[DEFAULT]
+backend = systemd
+bantime = 1h
+findtime = 10m
+maxretry = 5
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 1w
+ignoreip = 127.0.0.0/8 ::1 __TRUSTED_NETWORKS__
+
+[sshd]
+enabled = true
+mode = aggressive
+port = 22
