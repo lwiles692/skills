@@ -1,43 +1,117 @@
 #!/bin/sh
 set -eu
 
-PACKAGE_SOURCES='npm:@dietrichgebert/ponytail
-npm:pi-web-access
-npm:pi-subagents
-npm:@ff-labs/pi-fff
-npm:pi-context-view
-npm:pi-mcp-adapter
-npm:@narumitw/pi-btw
-npm:@plannotator/pi-extension
-npm:@narumitw/pi-goal
-npm:@quintinshaw/pi-dynamic-workflows'
+ALL_PACKAGE_IDS='ponytail web-access subagents fff context-view mcp-adapter btw plannotator goal dynamic-workflows'
 
 scope=global
 mode=install
+selected_ids=
+select_all=false
+list_only=false
 
 usage() {
   printf '%s\n' \
-    'Usage: configure-pi-agent-extensions.sh [--local] [--dry-run | --verify-only]' \
+    'Usage: configure-pi-agent-extensions.sh [--local] [--dry-run | --verify-only] (--package ID)...' \
+    '       configure-pi-agent-extensions.sh [--local] [--dry-run | --verify-only] --all' \
+    '       configure-pi-agent-extensions.sh --list' \
     '' \
     'Options:' \
+    '  --package ID   Select one extension; repeat for multiple extensions.' \
+    '  --all          Select all ten extensions explicitly.' \
     '  --local        Use project-local .pi/settings.json instead of user settings.' \
-    '  --dry-run      Show which packages are present or missing without changing anything.' \
-    '  --verify-only  Verify configuration and extension loading without installing.' \
+    '  --dry-run      Show selected package status without changing anything.' \
+    '  --verify-only  Verify selected packages and extension loading without installing.' \
+    '  --list         List valid extension IDs and npm sources.' \
     '  -h, --help     Show this help.'
+}
+
+source_for_id() {
+  case "$1" in
+    ponytail) printf '%s\n' 'npm:@dietrichgebert/ponytail' ;;
+    web-access) printf '%s\n' 'npm:pi-web-access' ;;
+    subagents) printf '%s\n' 'npm:pi-subagents' ;;
+    fff) printf '%s\n' 'npm:@ff-labs/pi-fff' ;;
+    context-view) printf '%s\n' 'npm:pi-context-view' ;;
+    mcp-adapter) printf '%s\n' 'npm:pi-mcp-adapter' ;;
+    btw) printf '%s\n' 'npm:@narumitw/pi-btw' ;;
+    plannotator) printf '%s\n' 'npm:@plannotator/pi-extension' ;;
+    goal) printf '%s\n' 'npm:@narumitw/pi-goal' ;;
+    dynamic-workflows) printf '%s\n' 'npm:@quintinshaw/pi-dynamic-workflows' ;;
+    *) return 1 ;;
+  esac
+}
+
+description_for_id() {
+  case "$1" in
+    ponytail) printf '%s\n' 'minimal-code guidance' ;;
+    web-access) printf '%s\n' 'web and document access' ;;
+    subagents) printf '%s\n' 'focused child-agent delegation' ;;
+    fff) printf '%s\n' 'indexed fuzzy repository search' ;;
+    context-view) printf '%s\n' 'context usage inspection' ;;
+    mcp-adapter) printf '%s\n' 'on-demand MCP discovery' ;;
+    btw) printf '%s\n' 'side questions outside the main thread' ;;
+    plannotator) printf '%s\n' 'interactive plan review' ;;
+    goal) printf '%s\n' 'persistent goal completion' ;;
+    dynamic-workflows) printf '%s\n' 'multi-agent workflow orchestration' ;;
+    *) return 1 ;;
+  esac
+}
+
+print_catalog() {
+  for package_id in $ALL_PACKAGE_IDS; do
+    package_source=$(source_for_id "$package_id")
+    package_description=$(description_for_id "$package_id")
+    printf '  %-18s %-48s %s\n' "$package_id" "$package_source" "$package_description"
+  done
+}
+
+contains_selected_id() {
+  case " $selected_ids " in
+    *" $1 "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+add_selected_id() {
+  package_id=$1
+  if ! source_for_id "$package_id" >/dev/null; then
+    printf 'Unknown package ID: %s\n' "$package_id" >&2
+    printf 'Run with --list to see valid IDs.\n' >&2
+    exit 2
+  fi
+  if ! contains_selected_id "$package_id"; then
+    selected_ids="${selected_ids:+$selected_ids }$package_id"
+  fi
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --package)
+      [ "$#" -ge 2 ] || { printf '%s\n' '--package requires an ID.' >&2; exit 2; }
+      add_selected_id "$2"
+      shift 2
+      ;;
+    --all)
+      select_all=true
+      shift
+      ;;
     --local)
       scope=local
+      shift
       ;;
     --dry-run)
       [ "$mode" = install ] || { printf 'Choose only one mode.\n' >&2; exit 2; }
       mode=dry-run
+      shift
       ;;
     --verify-only)
       [ "$mode" = install ] || { printf 'Choose only one mode.\n' >&2; exit 2; }
       mode=verify
+      shift
+      ;;
+    --list)
+      list_only=true
+      shift
       ;;
     -h|--help)
       usage
@@ -49,8 +123,23 @@ while [ "$#" -gt 0 ]; do
       exit 2
       ;;
   esac
-  shift
 done
+
+if [ "$list_only" = true ]; then
+  printf 'Available Pi extensions:\n'
+  print_catalog
+  exit 0
+fi
+
+if [ "$select_all" = true ]; then
+  [ -z "$selected_ids" ] || { printf 'Do not combine --all with --package.\n' >&2; exit 2; }
+  selected_ids=$ALL_PACKAGE_IDS
+fi
+
+if [ -z "$selected_ids" ]; then
+  printf 'Select at least one extension with --package ID or use --all.\n' >&2
+  exit 2
+fi
 
 if ! command -v pi >/dev/null 2>&1; then
   printf 'Pi is not installed or is not on PATH.\n' >&2
@@ -59,25 +148,32 @@ fi
 
 pi_version=$(pi --version | sed -n '1p')
 version_core=${pi_version%%-*}
-version_major=${version_core%%.*}
-version_rest=${version_core#*.}
-version_minor=${version_rest%%.*}
-version_patch=${version_rest#*.}
-version_patch=${version_patch%%.*}
+old_ifs=$IFS
+IFS=.
+set -- $version_core
+IFS=$old_ifs
 
-case "$version_major:$version_minor:$version_patch" in
-  *[!0-9:]*|::*|*::*|*:)
+if [ "$#" -ne 3 ]; then
+  printf 'Could not parse Pi version: %s\n' "$pi_version" >&2
+  exit 1
+fi
+
+version_major=$1
+version_minor=$2
+version_patch=$3
+case "$version_major$version_minor$version_patch" in
+  ''|*[!0-9]*)
     printf 'Could not parse Pi version: %s\n' "$pi_version" >&2
     exit 1
     ;;
 esac
 
-if [ "$version_major" -eq 0 ] && {
+if contains_selected_id plannotator && [ "$version_major" -eq 0 ] && {
   [ "$version_minor" -lt 79 ] || {
     [ "$version_minor" -eq 79 ] && [ "$version_patch" -lt 1 ]
   }
 }; then
-  printf 'Pi 0.79.1 or newer is required; found %s.\n' "$pi_version" >&2
+  printf 'Pi 0.79.1 or newer is required for Plannotator; found %s.\n' "$pi_version" >&2
   exit 1
 fi
 
@@ -102,13 +198,14 @@ has_source() {
 printf 'Pi version: %s\n' "$pi_version"
 printf 'Scope: %s\n' "$scope_label"
 printf 'Settings: %s\n' "$settings_file"
-printf 'Package plan:\n'
+printf 'Selected package plan:\n'
 
-for source in $PACKAGE_SOURCES; do
-  if has_source "$source"; then
-    printf '  [present] %s\n' "$source"
+for package_id in $selected_ids; do
+  package_source=$(source_for_id "$package_id")
+  if has_source "$package_source"; then
+    printf '  [present] %-18s %s\n' "$package_id" "$package_source"
   else
-    printf '  [missing] %s\n' "$source"
+    printf '  [missing] %-18s %s\n' "$package_id" "$package_source"
   fi
 done
 
@@ -117,21 +214,25 @@ if [ "$mode" = dry-run ]; then
 fi
 
 if [ "$mode" = install ]; then
-  for source in $PACKAGE_SOURCES; do
-    if has_source "$source"; then
-      printf 'Skipping existing %s\n' "$source"
+  for package_id in $selected_ids; do
+    package_source=$(source_for_id "$package_id")
+    if has_source "$package_source"; then
+      printf 'Skipping existing %s\n' "$package_source"
     elif [ "$scope" = local ]; then
-      pi install "$source" --local
+      pi install "$package_source" --local
     else
-      pi install "$source"
+      pi install "$package_source"
     fi
   done
 fi
 
 missing=0
-for source in $PACKAGE_SOURCES; do
-  if ! has_source "$source"; then
-    printf 'Missing from %s settings: %s\n' "$scope_label" "$source" >&2
+selected_count=0
+for package_id in $selected_ids; do
+  package_source=$(source_for_id "$package_id")
+  selected_count=$((selected_count + 1))
+  if ! has_source "$package_source"; then
+    printf 'Missing from %s settings: %s\n' "$scope_label" "$package_source" >&2
     missing=1
   fi
 done
@@ -145,4 +246,4 @@ else
   pi --offline --mode rpc --no-session < /dev/null >/dev/null
 fi
 
-printf 'Verified all 10 Pi extensions for %s scope.\n' "$scope_label"
+printf 'Verified %s selected Pi extension(s) for %s scope.\n' "$selected_count" "$scope_label"
