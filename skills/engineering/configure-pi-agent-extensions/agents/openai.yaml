@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure Pi Agent Extensions"
+  short_description: "Install and verify a curated Pi extension suite"
+  default_prompt: "Use $configure-pi-agent-extensions to install and verify the curated 10-package Pi Agent extension suite."
