@@ -153,6 +153,9 @@ test("skill delegates OCR work instead of packetizing repository evidence", () =
   assert.match(instructions, /\$open-code-review-delegate/);
   assert.match(instructions, /Do not prebuild diff packets/);
   assert.match(instructions, /bundled fallback/);
+  assert.match(instructions, /standalone dependency notice/);
+  assert.match(instructions, /without waiting for conversational confirmation/);
+  assert.match(instructions, /global npm environment/);
   assert.doesNotMatch(instructions, /max-unit-bytes|context-tokens/);
 });
 
@@ -327,7 +330,13 @@ test("checks OCR availability before inspecting the repository", () => {
     missing
   ]);
   assert.equal(result.status, 7);
+  assert.match(result.stderr, /Why it is needed:/);
+  assert.match(result.stderr, /selects the files to review/);
+  assert.match(result.stderr, /global npm environment/);
+  assert.match(result.stderr, /install OCR automatically/);
+  assert.match(result.stderr, /without waiting for conversational confirmation/);
   assert.match(result.stderr, /npm install -g @alibaba-group\/open-code-review/);
+  assert.match(result.stderr, /--ocr-bin <path>/);
   assert.doesNotMatch(result.stderr, /Git repository/);
 });
 

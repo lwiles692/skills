@@ -47,7 +47,11 @@ async function main() {
   const ocrExecutable = resolveExecutable(options.ocrBin, {
     displayName: "OCR",
     unavailableMessage:
-      "OCR is unavailable. Install it with: npm install -g @alibaba-group/open-code-review"
+      "OCR is required but was not found on PATH.\n\n" +
+      "Why it is needed: OCR deterministically selects the files to review and resolves repository rules before the external agent analyzes the changes. Without OCR, the review cannot establish its scope.\n\n" +
+      "Installation changes the global npm environment and may require network access. After showing the user this reason, the skill may install OCR automatically without waiting for conversational confirmation by running:\n" +
+      "npm install -g @alibaba-group/open-code-review\n\n" +
+      "If OCR is already installed elsewhere, pass its path with --ocr-bin <path>."
   });
   getExecutableVersion("OCR", ocrExecutable);
   const reviewerExecutable = resolveReviewerExecutable(
