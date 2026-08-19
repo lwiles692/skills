@@ -1,11 +1,17 @@
 ---
 name: write-google-style-docs
-description: Write, rewrite, or review English developer documentation according to the Google developer documentation style guide. Use for tutorials, how-to guides, conceptual documentation, API and CLI documentation, UI instructions, release notes, README content, and editorial audits that need clear, concise, consistent, accessible, inclusive, and globally understandable technical prose. Apply language-independent principles to translated documentation without imposing US-English grammar or punctuation.
+description: Write, rewrite, edit, or review developer-facing and technical documentation according to the Google developer documentation style guide. This skill is mandatory for every task that creates, changes, or evaluates such documentation, including when documentation is only one part of a larger coding or product task. Use for tutorials, how-to guides, conceptual documentation, API and CLI documentation, UI instructions, release notes, README content, migration guides, troubleshooting content, and editorial audits. Apply the full guide to English prose and language-independent principles to translated documentation without imposing US-English grammar or punctuation.
 ---
 
 # Write Google-style docs
 
 Produce developer documentation that is accurate, task-oriented, easy to scan, and consistent with the Google developer documentation style guide.
+
+## Treat this workflow as mandatory
+
+Use this skill whenever a task creates, rewrites, edits, or reviews developer-facing or technical documentation. Apply it even when documentation is a small part of a broader implementation, refactoring, release, or review task.
+
+Do not draft, revise, or approve documentation until you have read `references/core-style.md` and every task-relevant reference listed below. Follow the complete workflow and final checks; do not apply only a few remembered style tips. If a higher-priority user or project rule conflicts with this skill, follow the authority order below and state the exception when it affects the delivered document.
 
 ## Resolve authority
 
