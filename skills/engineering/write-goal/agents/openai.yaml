@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Goal"
+  short_description: "Draft verifiable objectives for persistent agent goals"
+  default_prompt: "Use $write-goal to help me draft a verifiable objective for a persistent agent goal."
