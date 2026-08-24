@@ -12,8 +12,8 @@ Use these principles for every document.
 
 ## Voice and tone
 
-- Sound conversational, friendly, respectful, and knowledgeable—not formal, pushy, cute, or frivolous.
-- Use common two-word contractions such as **don't**, **can't**, and **you're** when they sound natural. Don't invent contractions or use complex three-word contractions.
+- Use formal, professional written language that is respectful and knowledgeable. Avoid conversational phrasing, slang, casual idioms, and speech-like fragments.
+- Avoid contractions in prose. Preserve contractions in literal source content when necessary.
 - Don't use **please** in instructions. Direct, respectful imperatives are polite enough.
 - Avoid exclamation points, hype, unsupported superlatives, marketing claims, and promises about performance or ease.
 - Don't say that a task is easy, simple, quick, or obvious. Those judgments depend on the reader's experience.

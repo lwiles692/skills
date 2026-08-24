@@ -22,6 +22,8 @@ Apply guidance in this order:
 3. Follow this skill and the Google developer documentation style guide.
 4. For unresolved English spelling, use the first spelling in Merriam-Webster.
 
+Use formal written language for all prose. This project rule overrides the Google guide's conversational-tone guidance; see `references/core-style.md` for its application. Preserve literal source content, such as product names, UI labels, API identifiers, commands, and quotations.
+
 Depart from the guide when doing so clearly helps the intended readers. Keep any departure consistent within the document. Do not silently rewrite product names, UI labels, API identifiers, commands, code, or quoted text to satisfy prose rules.
 
 ## Select a mode
