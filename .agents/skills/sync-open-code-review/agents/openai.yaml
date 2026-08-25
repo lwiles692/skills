@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync Open Code Review"
+  short_description: "Sync the bundled OCR Delegate fallback"
+  default_prompt: "Use $sync-open-code-review to update this repository's bundled Open Code Review Delegate instructions from the official upstream skill."

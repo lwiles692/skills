@@ -6,7 +6,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const skillsRoot = path.join(repoRoot, "skills");
+const skillsRoots = [
+  path.join(repoRoot, "skills"),
+  path.join(repoRoot, ".agents", "skills")
+];
 const namePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const errors = [];
 let count = 0;
@@ -50,7 +53,9 @@ function visit(directory) {
   }
 }
 
-visit(skillsRoot);
+for (const skillsRoot of skillsRoots) {
+  if (fs.existsSync(skillsRoot)) visit(skillsRoot);
+}
 
 if (errors.length > 0) {
   for (const error of errors) console.error(error);
