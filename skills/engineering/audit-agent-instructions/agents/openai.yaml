@@ -1,0 +1,3 @@
+interface:
+  display_name: "代理指令审计"
+  short_description: "Audit skills and repository guidance against source evidence"
