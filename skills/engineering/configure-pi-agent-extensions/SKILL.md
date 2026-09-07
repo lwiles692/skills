@@ -9,16 +9,9 @@ Collect an explicit package selection, then configure only that selection throug
 
 ## Selection interaction
 
-Before previewing or installing anything, call the host's `askUserQuestion` tool (`AskUserQuestion` in hosts that capitalize tool names). Do not silently choose a preset.
+Reuse package selections and installation scope already supplied in the conversation. Ask only for missing or ambiguous selections; a request to verify existing packages authorizes verification, not installation. Use the host's available input capability and adapt to its question limits and selection support.
 
-Use one call containing these four questions:
-
-1. Header `Core`, question "Which core extensions do you want to install?", `multiSelect: true`: Ponytail, Web access, Subagents, FFF search.
-2. Header `Context`, question "Which context extensions do you want to install?", `multiSelect: true`: Context view, MCP adapter, BTW.
-3. Header `Workflow`, question "Which workflow extensions do you want to install?", `multiSelect: true`: Plannotator, Goal mode, Dynamic workflows.
-4. Header `Scope`, question "Where should the selected extensions be installed?", `multiSelect: false`: User-level (recommended; available across projects) or Project-level (current project's `.pi/settings.json`).
-
-Give every extension option the description from the catalog below. If `askUserQuestion` is unavailable, present the same grouped choices in plain text and wait for the response. If a custom response cannot be mapped unambiguously to the catalog, ask again instead of guessing. If the user selects no extensions, stop without running the script. Never infer that an empty response means all packages.
+When the selection is open, offer the catalog's Core, Context, and Workflow groups and ask for User-level or Project-level scope. Use the catalog descriptions to explain choices. Do not choose a preset or interpret an empty response as all packages. If the user selects no extensions, finish without running the script.
 
 ## Extension catalog
 
@@ -47,21 +40,21 @@ Give every extension option the description from the catalog below. If `askUserQ
 ## Workflow
 
 1. Convert each selected choice to its Script ID. Add `--local` only for Project-level scope.
-2. Run a read-only preview with one `--package` argument per selected ID. For example:
+2. Resolve the script to an absolute path relative to this `SKILL.md`. Keep the target project as the working directory; do not change into the skill directory. Run a read-only preview with one `--package` argument per selected ID. Replace `ABSOLUTE_SKILL_DIR` with the resolved skill directory:
 
    ```sh
-   ./scripts/configure-pi-agent-extensions.sh --dry-run \
+   sh ABSOLUTE_SKILL_DIR/scripts/configure-pi-agent-extensions.sh --dry-run \
      --package web-access \
      --package subagents
    ```
 
 3. Show the preview and state that the selected npm packages can execute code. When the request authorizes installation and the environment permits it, rerun the same command without `--dry-run`.
-4. Let the script install missing selected packages, verify the selected settings scope, print `pi list`, and perform an offline RPC startup check. Treat ordinary no-session delivery notices as non-fatal when Pi exits successfully.
-5. Tell the user to run `/reload` in an existing Pi session or restart Pi. Report the scope, installed sources, skipped existing sources, and warnings.
+4. Let the script install missing selected packages and verify their registrations in the selected settings scope. The script parses JSON with Node.js and does not load extensions or prove that their code works.
+5. Report the scope, installed sources, existing registrations, and any unresolved checks. Tell the user to run `/reload` in an existing Pi session or restart Pi. Claim that an extension is ready only after observing its successful load or operation. If the user requests a loading test, use an isolated profile containing only the selected sources; do not load unrelated extensions from the live profile.
 
 Use `--verify-only` with the same `--package` arguments to validate an existing selection. Use `--all` only when the user explicitly selects all ten extensions. Use `--list` to print the catalog of valid Script IDs.
 
-Require Pi 0.79.1 or newer when Plannotator is selected. If Pi is absent or too old, stop and ask the user to install or update Pi; do not update Pi automatically.
+Require Node.js on `PATH` for structured settings checks. Require Pi 0.79.1 or newer when Plannotator is selected. If Pi is absent or too old, stop and ask the user to install or update Pi; do not update Pi automatically.
 
 ## Optional post-install configuration
 

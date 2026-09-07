@@ -72,13 +72,13 @@ Then resolve the installed binary, run `herdr --version`, and read `herdr --skil
 
 ### 3. Verify local key access and stage assets
 
-Before changing password authentication, verify the intended local private key and use it for a fresh key-only connection:
+Before changing password authentication, verify the intended local private key and use it for a fresh key-only connection. Replace `KEY`, `SSH_PORT`, `USER`, and `TARGET` with the resolved private-key path, effective port, login user, and target. Reuse these values for every connection and probe:
 
 ```sh
 test -r KEY
 ssh-keygen -y -f KEY >/dev/null
 ssh-keygen -lf KEY
-ssh -p PORT -i KEY \
+ssh -p SSH_PORT -i KEY \
   -o BatchMode=yes \
   -o IdentitiesOnly=yes \
   -o PreferredAuthentications=publickey \
@@ -92,14 +92,21 @@ ssh -p PORT -i KEY \
 
 Require exit status zero. Abort without changing password authentication if the key is unreadable, its public key cannot be derived, or the fresh connection fails. Diagnose the key authorization or target selection instead of installing fallback keys.
 
-Stage the assets and rollback scripts under a root-only remote staging directory. Staging may use SCP; applying them must occur in Herdr. Verify checksums after transfer.
+Stage the assets and rollback scripts under a root-only remote staging directory. Use `scp -P SSH_PORT -i KEY` with the verified login user for transfers; for sudo access, transfer to a private user-owned directory and move the files into root-only staging inside Herdr. Verify checksums after transfer. Apply configuration only inside Herdr.
 
-Attach a named remote session and confirm the pane environment before proceeding:
+Resolve the remote Herdr executable to `HERDR_PATH`. Attach through the same verified login user and port; replace `HERDR_PATH` in the remote command with that absolute path. For a root login:
 
 ```sh
-ssh -tt -i KEY -o IdentitiesOnly=yes root@TARGET 'cd /root && exec /root/.local/bin/herdr --session linux-hardening'
-test "$HERDR_ENV" = 1
+ssh -tt -p SSH_PORT -i KEY -o IdentitiesOnly=yes USER@TARGET 'cd /root && exec HERDR_PATH --session linux-hardening'
 ```
+
+For a non-root login, first verify `sudo -n true` through that same connection, then attach with the verified elevation path:
+
+```sh
+ssh -tt -p SSH_PORT -i KEY -o IdentitiesOnly=yes USER@TARGET 'sudo -n -H sh -c "cd /root && exec HERDR_PATH --session linux-hardening"'
+```
+
+Inside the remote pane, require `id -u` to report `0` and `test "$HERDR_ENV" = 1` to succeed before applying changes. Use the same verified elevation path for a missing-Herdr bootstrap.
 
 ### 4. Disable SSH password authentication
 
@@ -126,7 +133,11 @@ If firewalld, UFW, or another configuration manager owns host-input policy, expr
 
 The nftables asset owns only `table inet host_public_ingress`. It accepts established traffic, ICMP/ICMPv6, DHCP client replies, and approved TCP ports on the confirmed public interfaces, then drops other host-bound traffic from those interfaces. Its base-chain policy remains `accept`, so traffic from every other interface continues normally. It defines no `forward`, `output`, or NAT chain and contains no `flush ruleset` command.
 
-Preserve the system's persistent configuration layout. Prefer installing the derived table as a dedicated included file rather than replacing a root configuration that contains other rules. Back up every modified persistence file and schedule `scripts/rollback-nftables.sh BACKUP_OR___ABSENT__ TARGET` before applying. When reapplying, delete only the skill-owned `inet host_public_ingress` table, then load the validated derived file. Never reload a configuration that flushes unrelated tables.
+Preserve the system's persistent configuration layout. Prefer a dedicated included file rather than replacing a root configuration containing other rules. For direct nftables changes, follow [references/firewall-rollback.md](references/firewall-rollback.md) to snapshot the owned table, back up every modified persistence file, validate the rollback, and schedule it before applying. The rollback requires Python 3 and restores files separately from a JSON transaction restricted to the owned table. Never pass a root ruleset configuration as a table snapshot or load it during rollback.
+
+For firewalld or UFW, prepare a manager-specific rollback of the exact rules or zone settings being changed and schedule it before application. Verify both runtime and persistent restoration without a global reload or flush. Use the direct nftables helper only for the skill-owned table; if the manager cannot preserve the required boundary, report the limitation before applying the deny policy.
+
+When reapplying the direct nftables policy, replace only `inet host_public_ingress` in a validated transaction. Never reload a configuration that flushes unrelated tables.
 
 From a new connection verify:
 

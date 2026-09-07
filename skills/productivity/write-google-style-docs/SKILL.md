@@ -11,7 +11,7 @@ Produce developer documentation that is accurate, task-oriented, easy to scan, a
 
 Use this skill whenever a task creates, rewrites, edits, or reviews developer-facing or technical documentation. Apply it even when documentation is a small part of a broader implementation, refactoring, release, or review task.
 
-Do not draft, revise, or approve documentation until you have read `references/core-style.md` and every task-relevant reference listed below. Follow the complete workflow and final checks; do not apply only a few remembered style tips. If a higher-priority user or project rule conflicts with this skill, follow the authority order below and state the exception when it affects the delivered document.
+Apply the style guidance to every technical-documentation task, scaling reference reads and checks to the change. Reuse guidance already read and still available in the conversation. For a local correction, read the core guidance and only the rule sections needed to verify that correction; for new documents, substantial rewrites, and formal audits, load the applicable references and use the review passes below. If a higher-priority user or project rule conflicts with this skill, follow the authority order below and state the exception when it affects the delivered document.
 
 ## Resolve authority
 
@@ -36,9 +36,9 @@ Infer the mode from the request. Ask a question only when a missing fact would m
 
 ## Load the guidance
 
-Read [references/core-style.md](references/core-style.md) for every task.
+Read [references/core-style.md](references/core-style.md), or reuse it if already available in the current context.
 
-Then read only the references that match the document:
+For a local correction, consult only the relevant sections below and verify the changed text, technical facts, and affected links or examples. Do not load whole references because an unchanged document happens to contain a heading, table, or command. For new documents, substantial rewrites, or formal audits, read the references that apply:
 
 - Read [references/structure-and-procedures.md](references/structure-and-procedures.md) for headings, lists, tutorials, how-to guides, tables, or notices.
 - Read [references/technical-elements.md](references/technical-elements.md) for code, commands, placeholders, output, API references, UI instructions, links, images, or accessibility markup.
@@ -46,7 +46,9 @@ Then read only the references that match the document:
 - Read [references/review-checklist.md](references/review-checklist.md) when revising or auditing existing content.
 - Read [references/official-sources.md](references/official-sources.md) when the task turns on a narrow rule or current word-list entry. If internet access is available and recency matters, verify the rule on the linked official page.
 
-## Work in deliberate passes
+## Review substantial work
+
+Use these passes for new documents, substantial rewrites, and formal audits:
 
 1. Identify the audience, task, prerequisites, document type, source format, and required outcome.
 2. Verify technical statements against the supplied sources or repository. Do not invent behavior to make prose flow.

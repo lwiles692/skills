@@ -2,3 +2,6 @@ interface:
   display_name: "New API Model Pricing"
   short_description: "Fill New API model prices from models.dev"
   default_prompt: "Use $new-api-model-pricing to fill the missing prices in my New API backend."
+
+policy:
+  allow_implicit_invocation: false

@@ -7,26 +7,22 @@ description: Help users draft and refine a verifiable objective for an agent's p
 
 Help the user turn a rough intention into an objective that an agent's persistent goal workflow can pursue across many turns without supervision. A goal is not a task description — it is a completion contract. It says what must become *true*, how that truth is *proven*, where the work may and may not *reach*, and when to *stop and report* instead of grinding on.
 
-This skill is about authoring the objective text together with the user. Drafting and starting are separate steps. Settle the wording first. Start the goal only when the user explicitly asks and the host provides a goal-start capability.
+This skill is about authoring the objective text together with the user. Distinguish drafting from starting. Start only when the user explicitly authorizes it and the host provides a goal-start capability.
 
 ## Adapt to the host
 
 Detect the capabilities available in the current host. Treat tool names, parameters, confirmation behavior, budget units, and active-goal rules as host-specific. Use only capabilities and fields that the host exposes. If the host cannot start a persistent goal, return the approved objective and explain that limitation instead of inventing a command or parameter.
 
-## Use structured choices
+## Resolve missing decisions
 
-Use the host's structured-choice capability for every decision that has a finite set of options. Do not assume a specific tool name. Batch related choices in one prompt when that helps the user decide.
-
-Goal authoring includes choices about scope, phrasing, budgets, and permission modes. When the current mode or host does not provide a structured-choice prompt, ask one short plain-text question with clearly labeled options and wait for the user's answer. Do not bury discrete options in a paragraph.
-
-Ask open-ended questions, such as "What would prove this is done?", in plain text.
+Reuse the outcome, wording, scope, budget, and start authorization already supplied in the conversation. Draft directly when they are sufficient. Ask only about missing facts that materially change the objective or permitted work. Use the host's available input capability for useful choices, adapting to its mode and schema; otherwise ask one concise plain-text question. Treat wording alternatives as suggestions, not mandatory decisions.
 
 ## Rules of engagement
 
 - **Only help when the user has asked for it.** Never volunteer to wrap an ordinary request in a goal, and never start one on your own. A normal "fix this test" is a normal request; treat it as a goal only when the user says they want a persistent goal. If a task looks suitable for a persistent goal workflow, you may mention that once — but wait for the user to choose.
 - **Write in the user's language.** Draft the objective in whatever language the user is writing to you in. If the project configuration or a saved memory names a preferred language, honor that instead. Keep the surrounding discussion in the same language.
-- **Show before you start.** Always present the full drafted goal back to the user and get their agreement before anything runs. The user should read the exact text that will become the objective, not a paraphrase of it.
-- **Draft with the user, not for them.** Goal-writing is a conversation. Offer a draft, explain the choices you made, invite changes, and fold the feedback in. Expect more than one round.
+- **Honor the requested start boundary.** Return the full objective when the user asks only for drafting. If they explicitly request starting an exact supplied or already accepted objective, reuse that authorization. If they authorize drafting and starting, present the full objective and proceed when it stays within the specified scope; resolve any material scope change before starting.
+- **Scale collaboration to the request.** Give a usable first draft and incorporate feedback when supplied. Do not require extra rounds when the user has provided enough information.
 - **Respect the user's final call.** If, after you have pointed out what is vague or risky, the user still wants a looser or thinner goal, write the goal they asked for. Note the trade-off once; do not keep relitigating it or quietly "improve" the wording against their wishes.
 
 ## What makes a goal good
@@ -54,45 +50,8 @@ When a budget is genuinely useful — typically an open-ended or exploratory goa
 
 ## Workflow
 
-1. **Understand the intention.** Ask what outcome the user actually wants and what would prove it is done. If a finish line or a check is missing, that gap is the first thing to resolve together. As soon as the open questions reduce to concrete options, use the structured-choice approach described earlier.
-2. **Draft the goal.** Write a concrete objective in the user's language, covering as many parts of the contract above as the task warrants. Keep it readable — one or a few sentences for simple work, a short structured block (end state, checks, boundaries, stop rule) for larger work.
-3. **Show it and explain.** Present the draft in full and walk through the choices: what you picked as the finish line, what proves it, what you fenced off, when it stops. Point out anything still soft.
-4. **Revise together.** Take the user's edits and produce a new draft. When you are weighing alternative phrasings or scopes, offer them through the structured-choice approach described earlier. Repeat until they are satisfied. If they want it looser than you would recommend, say so once, then write their version.
-5. **Start it when requested.** After the user approves the wording, ask whether they want to start the goal. If they explicitly agree and the host provides a goal-start capability, invoke it with the agreed objective and only the optional fields that the host supports. Otherwise, return the exact objective for the user to use. Never assume that the host provides another confirmation step.
+1. **Establish the contract.** Extract the intended outcome, proof, scope, and blockers from the request. Ask only about a material gap that cannot be resolved from context.
+2. **Draft the goal.** Write a concrete objective in the user's language. Use one or a few sentences for simple work and a short structured block for larger work. Explain only choices that help the user assess it.
+3. **Complete the requested action.** Return the draft for a writing-only request. Incorporate supplied edits. Start only when explicitly authorized, using the exact agreed objective or the draft within an authorized “draft and start” request, and only the optional fields the host supports. Do not ask again for start authorization already given.
 
-## A reusable shape
-
-For a non-trivial goal, this fill-in-the-blanks structure covers the contract:
-
-```
-<What must become true.>
-Done when <command/search/state that proves it>.
-Scope: only <files/area>; do not <off-limits action>.
-Loop: <how to iterate — rerun the check after each change, etc.>.
-If <blocking condition>, stop and report instead of forcing a pass.
-```
-
-Not every goal needs every line, and none of them is an execution cap — the goal stops when the proof passes or a blocker is hit. A small, well-scoped task can be a single clear sentence. Add structure as the work grows or the cost of a wrong autonomous run rises.
-
-## Weak to strong
-
-- Weak: `Find all bugs in this codebase.` — no finish line, no proof, no stop. The agent may block at once or run far past what you wanted.
-  Strong: `Fix every test in test/auth that currently fails, rerun npm test until it exits 0, change no file outside test/ or src/auth, and report anything you cannot fix with its location and why.`
-- Weak: `Optimize the project.` — no scope, no measure.
-  Strong: `Migrate the payment module to the new API, make npm test -- payment exit 0, keep the diff limited to payment-related files, and stop and ask before touching shared infrastructure.`
-- Weak: `Make it faster.`
-  Strong: `Make renderFrame at least 3x faster measured by the bench/render benchmark; if you cannot reach 3x after several attempts, report the best result and why.`
-
-## Common mistakes
-
-| Mistake | Better |
-| --- | --- |
-| Starting or suggesting a goal the user did not ask for | Only draft a goal once the user asks; mention the option at most once otherwise |
-| Drafting in English when the user is writing in another language | Match the user's language (or the project / memory preference) |
-| Running the goal before the user has seen the exact text | Show the full draft and get agreement first |
-| Polishing the goal silently against the user's stated wishes | Note the trade-off once, then write the goal they asked for |
-| Burying a discrete choice in prose | Use a structured-choice prompt, or clearly labeled plain-text options when one is unavailable |
-| Specifying effort ("keep improving X") | Specify proof ("done when check X passes") |
-| Baking an execution cap into the objective or setting a budget unprompted | Let the goal stop on its proof; suggest only a useful budget that the host supports |
-| No blocked path | Add an explicit "stop and report" rule for blockers |
-| A goal with no way to verify completion | Anchor it to tests, a search, a metric, or another inspectable check |
+Read [references/goal-examples.md](references/goal-examples.md) when a complex objective needs a template or the user needs weak-to-strong examples.

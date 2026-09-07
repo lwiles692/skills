@@ -20,7 +20,7 @@ usage() {
     '  --all          Select all ten extensions explicitly.' \
     '  --local        Use project-local .pi/settings.json instead of user settings.' \
     '  --dry-run      Show selected package status without changing anything.' \
-    '  --verify-only  Verify selected packages and extension loading without installing.' \
+    '  --verify-only  Verify selected package registrations without installing or loading code.' \
     '  --list         List valid extension IDs and npm sources.' \
     '  -h, --help     Show this help.'
 }
@@ -191,8 +191,18 @@ else
   scope_label='user-level'
 fi
 
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+command -v node >/dev/null 2>&1 || { printf 'Node.js is required to read Pi settings.\n' >&2; exit 1; }
+
+read_sources() {
+  node "$script_dir/read-package-sources.mjs" "$settings_file"
+}
+
+# Validate the complete JSON before any installation. A parse error must not
+# become a missing-package result inside a shell conditional.
+registered_sources=$(read_sources)
 has_source() {
-  [ -f "$settings_file" ] && grep -Fq "\"$1\"" "$settings_file"
+  printf '%s\n' "$registered_sources" | grep -Fxq -- "$1"
 }
 
 printf 'Pi version: %s\n' "$pi_version"
@@ -226,6 +236,7 @@ if [ "$mode" = install ]; then
   done
 fi
 
+registered_sources=$(read_sources)
 missing=0
 selected_count=0
 for package_id in $selected_ids; do
@@ -238,12 +249,5 @@ for package_id in $selected_ids; do
 done
 [ "$missing" -eq 0 ] || exit 1
 
-pi list
-
-if [ "$scope" = local ]; then
-  pi --approve --offline --mode rpc --no-session < /dev/null >/dev/null
-else
-  pi --offline --mode rpc --no-session < /dev/null >/dev/null
-fi
-
-printf 'Verified %s selected Pi extension(s) for %s scope.\n' "$selected_count" "$scope_label"
+printf 'Verified %s selected package registration(s) for %s scope.\n' "$selected_count" "$scope_label"
+printf 'Extension loading was not tested. Reload Pi and check the selected extensions before claiming they are ready.\n'

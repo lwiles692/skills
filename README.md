@@ -24,7 +24,12 @@ Each skill owns its `SKILL.md`, `agents/openai.yaml`, and any runtime-specific `
 
 ## Development
 
+Use Node.js 18.18 or newer and Python 3.6 or newer. Install the development dependencies, then run the local tests and skill validation:
+
 ```bash
+npm ci
 npm test
 npm run validate
 ```
+
+The tests use temporary files and substitute Pi, nftables, OCR, and reviewer executables. They do not install extensions, modify a firewall, or call a review model. Skill validation parses YAML and checks invocation-policy consistency across harness metadata.
