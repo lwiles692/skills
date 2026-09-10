@@ -1,0 +1,4 @@
+interface:
+  display_name: "交通违法视频筛查"
+  short_description: "使用 ffmpeg 筛查疑似交通违法并导出包含清晰号牌的证据视频"
+  default_prompt: "使用 $ffmpeg-traffic-review 筛查行车视频，导出包含完整事件和清晰号牌的证据视频，通常 15 秒且至少 6 秒，按实际拍摄时间-车牌号-违法行为命名。"
