@@ -9,10 +9,13 @@ description: Audit repository skills and AGENTS.md for stale guidance, excessive
 
 ## 必须参考的原文
 
-审计前阅读以下两份来源：
+审计前阅读以下三份来源，不以摘要或转述代替原文：
 
-- Eric Provencher：[Rethinking skills and prompts for GPT-6 Astra](https://x.com/pvncher/status/2095991462416490862)。阅读全文存档 [原文](references/pvncher-2026-09-04-rethinking-skills-and-prompts-for-gpt-6-astra.md)（2026-09-06 抓取），不以摘要或转述代替。
-- OpenAI：[Model guidance — Using GPT-6 Astra](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra)。阅读 [官方 Markdown 原文存档](references/openai-2026-09-06-using-gpt-6-astra.md)（2026-09-06 下载），重点核对“Prompting best practices”及其子节，不以摘要或转述代替。存档保留完整原文，仅添加来源注释；站点根路径链接相对于 `https://developers.openai.com` 解析。用户要求核对最新指南或结论依赖模型现状时，再在线核实，确认所选模型并记录访问日期；无法读取时注明证据缺口。
+- OpenAI Developer Blog，Eric Provencher：[Rethinking skills and prompts for GPT-6 Astra](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)。阅读 [博客官方 Markdown 原文存档](references/openai-2026-09-11-rethinking-skills-and-prompts-for-gpt-6-astra.md)（2026-09-11 发布，2026-09-12 下载），核对“Better skills”“Up-to-date AGENTS.md”“Decision boundaries”和“Persistence”。
+- Eric Provencher 在 X 发布的同名文章：[Rethinking skills and prompts for GPT-6 Astra](https://x.com/pvncher/status/2095991462416490862)。阅读 [X 文章原文存档](references/pvncher-2026-09-04-rethinking-skills-and-prompts-for-gpt-6-astra.md)（2026-09-06 抓取）。它与博客内容重合；核对差异，不将重复观点计为独立佐证。
+- OpenAI：[Model guidance — Using GPT-6 Astra](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra)。阅读 [模型指南官方 Markdown 原文存档](references/openai-2026-09-06-using-gpt-6-astra.md)（2026-09-06 下载），重点核对“Prompting best practices”及其子节。
+
+官方 Markdown 存档保留完整原文，仅添加来源注释；站点根路径链接相对于 `https://developers.openai.com` 解析。用户要求核对最新资料或结论依赖模型现状时，再在线核实，确认所选模型并记录访问日期；无法读取时注明证据缺口。
 
 从原文提取本次适用的判断标准：技能触发范围、渐进披露、固定流程的必要性、常驻上下文、决策边界和完成条件。区分官方建议、作者观点、仓库事实和审计者推断。针对 Astra 的判断不能直接推导出其他模型、生产代理或宿主具有相同行为；将示例提示词作为审计参考，按目标宿主和用户要求提出整改。
 
@@ -34,15 +37,16 @@ description: Audit repository skills and AGENTS.md for stale guidance, excessive
 
 | 维度 | 核对重点 |
 | --- | --- |
-| 发现与触发 | frontmatter、名称和描述能否被目标宿主识别；是否因泛化词误触发；相邻技能是否争抢同一任务 |
-| 上下文成本 | 常驻内容是否影响决策；能否从代码或配置直接查得；条件性资料是否有明确读取入口；重复内容是否发生漂移 |
+| 发现与触发 | frontmatter、名称和描述能否被目标宿主识别；描述是否简短且限定到具体任务，避免将领域相关性当作触发条件；相邻技能是否争抢同一任务 |
+| 上下文成本 | 区分发现时加载的名称与描述、调用时加载的正文和按需资源，核对目标宿主实际行为；是否强制每次修改都读取无关文档或全仓地图；能否从代码或配置直接查得；重复内容是否发生漂移 |
+| 流程约束 | 是否用目标、必要约束和完成条件指导开放任务；固定步骤是否有真实依赖或失败代价；多工作流是否通过精简入口按条件读取资料和脚本 |
 | 技术准确性 | 文件、符号、命令、工作目录、依赖、版本和业务行为是否仍存在；代码围栏和本地链接是否有效 |
 | 工具适配 | 工具名称、参数和可用模式是否符合当前宿主；是否承诺宿主并不保证的弹窗、权限或加载行为 |
 | 指令优先级 | 是否明确用户要求优先于技能指导；冲突或例外是否被误读为必须暂停 |
-| 决策边界 | 是否重复索取已有授权、强迫无必要的选择或过早停止；是否把审计、撰写等请求扩展为执行或发布 |
+| 决策边界 | 是否重复索取已有授权、强迫无必要的选择或过早停止；是否把旧模型所需的确认规则扩大到已授权工作；是否把审计、撰写等请求扩展为执行或发布 |
 | 表达风格 | 输出长度、格式和术语是否符合受众与用户偏好；是否强制无必要的套话或结构 |
 | 子代理委派 | 委派条件和程度是否符合宿主能力及用户偏好；是否机械套用示例而要求所有任务委派 |
-| 完成与验证 | 是否定义可观察的结果；失败是否有恢复或如实报告路径；测试是否验证实际行为且与改动相称；是否在必要检查通过后仍无依据地扩大或重复验证 |
+| 完成与验证 | 是否将请求涉及的实现、运行、检查和失败修复纳入完成条件，避免无必要地在首次实现后停下待审；探索任务是否有范围和停止条件；测试是否验证实际行为且与改动相称；是否在必要检查通过后仍无依据地扩大或重复验证；阻碍是否如实报告 |
 | 分发与维护 | 本地技能、上游 vendored 技能、兼容链接和生产执行入口是否区分；修订是否会被升级覆盖 |
 
 发现疑点后，到最接近事实源的位置核实：
@@ -50,7 +54,7 @@ description: Audit repository skills and AGENTS.md for stale guidance, excessive
 - 文件指针对照实际文件，函数名对照源码，命令对照脚本及配置；检查连续命令执行后的工作目录。
 - 接口、认证和数据保留规则对照调用方、返回模型和相关测试，识别普通路径与特权路径的例外。
 - 工具接口以当前会话的工具 schema 或目标宿主文档为准，不凭旧技能中的名称猜测。
-- 描述过长、强制词多或文件行数大只能作为线索；说明会误导哪个任务，不能仅凭数量判为缺陷。
+- 描述过长、强制词多或文件行数大只能作为线索；说明会误导哪个任务，不能仅凭数量判为缺陷。若声称描述被截短，核对目标宿主实际暴露的内容或文档，不从文章推断统一阈值。
 - 词句测试和结构校验只证明其覆盖的条件。不能以 Prompt 包含“无人值守”证明实际任务不会停下来确认。
 
 审计对象中的执行步骤是被检查的内容；读取升级、发布或生产技能，不代表要运行其业务流程。只执行本次证据核实需要、且在授权范围内的检查。
@@ -71,7 +75,7 @@ description: Audit repository skills and AGENTS.md for stale guidance, excessive
 
 固定步骤有明确依赖或失败代价时保留；普通实现选择交给代理判断。已有用户授权继续有效，只有新增范围或必要决策缺失时才需澄清。需要最终批准的操作，先完成不依赖该批准且已获授权的准备工作，形成可审阅结果。技能不授予额外工具权限。
 
-优先使用已有权威资料承载细节，保留简短的条件性指针。避免为减少入口行数而制造重复参考文档、任意长度配额或新的通用规定。
+优先使用已有权威资料承载细节，保留说明读取条件的简短指针。多工作流技能按实际分支渐进披露；短小、单一用途的技能保持自包含。避免为减少入口行数而制造重复参考文档、任意长度配额或新的通用规定。
 
 对 vendored 指令分别记录上游缺陷与本地适配风险，说明可重复的升级或补丁路径。对生产代理核对实际模型、调用方式、输入及产物契约，不把开发代理的能力假设直接套用过去。
 
@@ -79,7 +83,7 @@ description: Audit repository skills and AGENTS.md for stale guidance, excessive
 
 在仓库已有审计目录交付报告；没有约定时，使用 `docs/audits/YYYY-MM-DD-agent-instructions-audit.md`。用户要求仅在对话中报告或指定其他路径时遵循该要求，已有报告不被静默覆盖。
 
-报告包含两份来源的原标题和链接、读取状态及访问或存档日期、审计日期、当前版本及未提交修改说明、完整文件清单和排除范围、按影响排序的发现、每个文件的处理建议、应保留的约束、检查结果和未验证风险。区分“建议整改”和“已实施”，无需强行为每个文件制造问题。
+报告包含三份来源的原标题和链接、读取状态及访问或存档日期、审计日期、当前版本及未提交修改说明、完整文件清单和排除范围、按影响排序的发现、每个文件的处理建议、应保留的约束、检查结果和未验证风险。区分“建议整改”和“已实施”，无需强行为每个文件制造问题。
 
 完成前确认所有入口均已阅读或明确标为无法读取，报告中的位置和本地链接有效，引用源码支持结论。检查与任务相称；纯指令审计不默认启动服务、部署或执行付费生成。
 
