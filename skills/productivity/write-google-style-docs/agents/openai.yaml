@@ -1,4 +1,4 @@
 interface:
   display_name: "Write Google-style docs"
-  short_description: "Write and review clear Google-style developer docs"
-  default_prompt: "Use $write-google-style-docs to write or review developer documentation, selecting references and checks appropriate to the change."
+  short_description: "Write, edit, and audit the style of developer docs"
+  default_prompt: "Use $write-google-style-docs to write or edit developer documentation, or audit its writing quality, structure, and style, selecting references and checks appropriate to the task."

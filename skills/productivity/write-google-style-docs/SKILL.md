@@ -1,17 +1,19 @@
 ---
 name: write-google-style-docs
-description: Write, rewrite, edit, or review developer-facing and technical documentation according to the Google developer documentation style guide. This skill is mandatory for every task that creates, changes, or evaluates such documentation, including when documentation is only one part of a larger coding or product task. Use for tutorials, how-to guides, conceptual documentation, API and CLI documentation, UI instructions, release notes, README content, migration guides, troubleshooting content, and editorial audits. Apply the full guide to English prose and language-independent principles to translated documentation without imposing US-English grammar or punctuation.
+description: Write or edit developer-facing and technical documentation, or audit its writing quality, structure, and style, using the Google developer documentation style guide. Do not use for merely reading, searching, summarizing, or explaining existing documentation, or consulting it as a reference for implementation or debugging. Apply to documentation writing, editing, and editorial audits within larger tasks.
 ---
 
 # Write Google-style docs
 
 Produce developer documentation that is accurate, task-oriented, easy to scan, and consistent with the Google developer documentation style guide.
 
-## Treat this workflow as mandatory
+## Apply within the documentation scope
 
-Use this skill whenever a task creates, rewrites, edits, or reviews developer-facing or technical documentation. Apply it even when documentation is a small part of a broader implementation, refactoring, release, or review task.
+Use this skill whenever a task creates or edits developer-facing or technical documentation, or audits its writing quality, structure, or style. Apply it to the documentation portion of a broader implementation, refactoring, release, or review task.
 
-Apply the style guidance to every technical-documentation task, scaling reference reads and checks to the change. Reuse guidance already read and still available in the conversation. For a local correction, read the core guidance and only the rule sections needed to verify that correction; for new documents, substantial rewrites, and formal audits, load the applicable references and use the review passes below. If a higher-priority user or project rule conflicts with this skill, follow the authority order below and state the exception when it affects the delivered document.
+Skip this workflow when the task only reads, searches, summarizes, or explains existing documentation, or uses it as a reference for implementation or debugging. Reading a README or API reference to gather information does not constitute an editorial audit.
+
+For in-scope work, scale reference reads and checks to the change. Reuse guidance already read and still available in the conversation. For a local correction, read the core guidance and only the rule sections needed to verify that correction; for new documents, substantial rewrites, and formal audits, load the applicable references and use the review passes below. If a higher-priority user or project rule conflicts with this skill, follow the authority order below and state the exception when it affects the delivered document.
 
 ## Resolve authority
 
@@ -30,7 +32,7 @@ Depart from the guide when doing so clearly helps the intended readers. Keep any
 
 - **Draft:** Create publication-ready content from requirements or source material.
 - **Revise:** Return improved copy while preserving meaning, technical behavior, document structure when useful, and the source format.
-- **Audit:** Report concrete issues and proposed fixes without rewriting unless the user asks for a rewrite.
+- **Audit:** Assess the document's writing quality, structure, and style. Report concrete issues and proposed fixes without rewriting unless the user asks for a rewrite.
 
 Infer the mode from the request. Ask a question only when a missing fact would materially change the result; otherwise, make the smallest reasonable assumption and identify it briefly.
 
