@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
 
 import {
@@ -80,7 +80,7 @@ function createDelegateSkill(directory) {
   return file;
 }
 
-function fakeReviewer(directory, { repo, report = null }) {
+function fakeReviewer(directory, { repo, report = null, delayMs = 0 }) {
   return writeExecutable(
     directory,
     "fake-reviewer.mjs",
@@ -127,10 +127,12 @@ function finish(prompt) {
       process.exit(9);
     }
   }
-  const outputIndex = args.indexOf("-o");
-  const report = ${JSON.stringify(report)};
-  if (outputIndex !== -1) fs.writeFileSync(args[outputIndex + 1], report ?? "");
-  else process.stdout.write(report ?? "");
+  setTimeout(() => {
+    const outputIndex = args.indexOf("-o");
+    const report = ${JSON.stringify(report)};
+    if (outputIndex !== -1) fs.writeFileSync(args[outputIndex + 1], report ?? "");
+    else process.stdout.write(report ?? "");
+  }, ${delayMs});
 }
 const promptIndex = args.indexOf("--prompt");
 if (promptIndex !== -1) {
@@ -167,6 +169,10 @@ test("requires one external reviewer and parses delegate targets", () => {
   assert.equal(workspace.profile.id, "pi");
   assert.equal(workspace.from, null);
   assert.equal(workspace.commit, null);
+  assert.equal(workspace.output, null);
+
+  const saved = parseArgs(["--agent", "pi", "--output", "review.md"]);
+  assert.equal(saved.output, path.resolve("review.md"));
 
   const range = parseArgs([
     "--agent",
@@ -315,7 +321,102 @@ test("end-to-end wrapper lets every external reviewer drive delegate mode", () =
     ], { env: { ...process.env, TMPDIR: tmpDir } });
     assert.equal(result.status, 0, `${agent}: ${result.stderr}`);
     assert.equal(result.stdout, expectedReport);
+    assert.match(result.stderr, /\[adversarial-code-review\] completed/);
+    assert.match(result.stderr, /read the full report/i);
   }
+});
+
+test("persists the full report without overwriting files", () => {
+  const repo = createRepo();
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "delegate-output-bin-"));
+  const ocr = fakeOcr(binDir);
+  const delegateSkill = createDelegateSkill(binDir);
+  const expectedReport = "Verdict: approve\n\nFull review comments:\n\nNo issues found.\n";
+  const reviewer = fakeReviewer(binDir, { repo, report: expectedReport });
+  const output = path.join(binDir, "review $& report.md");
+  const args = [
+    reviewScript,
+    "--agent", "codex",
+    "--ocr-bin", ocr,
+    "--reviewer-bin", reviewer,
+    "--delegate-skill", delegateSkill,
+    "--output", output
+  ];
+  const result = run(repo, process.execPath, args);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, expectedReport);
+  assert.equal(fs.readFileSync(output, "utf8"), expectedReport);
+  assert.ok(result.stderr.includes(JSON.stringify(output)), result.stderr);
+  assert.match(result.stderr, /\[adversarial-code-review\] completed/);
+
+  const collision = run(repo, process.execPath, args);
+  assert.notEqual(collision.status, 0);
+  assert.match(collision.stderr, /report file/);
+  assert.doesNotMatch(collision.stderr, /\[adversarial-code-review\] running|\[adversarial-code-review\] completed/);
+  assert.equal(fs.readFileSync(output, "utf8"), expectedReport);
+});
+
+test("a caller can wait on one running review and collect the saved report at completion", async () => {
+  const repo = createRepo();
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "delegate-delayed-bin-"));
+  const ocr = fakeOcr(binDir);
+  const delegateSkill = createDelegateSkill(binDir);
+  const expectedReport = "Verdict: needs-attention\n\nFull review comments:\n\n" + "Review evidence.\n".repeat(1000);
+  const reviewer = fakeReviewer(binDir, { repo, report: expectedReport, delayMs: 200 });
+  const output = path.join(binDir, "delayed-report.md");
+  const child = spawn(process.execPath, [
+    reviewScript,
+    "--agent", "claude",
+    "--ocr-bin", ocr,
+    "--reviewer-bin", reviewer,
+    "--delegate-skill", delegateSkill,
+    "--timeout", "5",
+    "--output", output
+  ], { cwd: repo, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "";
+  let stderr = "";
+  let reportAtCompletion = null;
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+    if (stderr.includes("[adversarial-code-review] completed")) {
+      reportAtCompletion = fs.existsSync(output) ? fs.readFileSync(output, "utf8") : null;
+    }
+  });
+  const code = await new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", resolve);
+  });
+  assert.equal(code, 0, stderr);
+  assert.match(stderr, /\[adversarial-code-review\] running/);
+  assert.equal(reportAtCompletion, expectedReport);
+  assert.equal(stdout, expectedReport);
+});
+
+test("a timed-out review signals failure and removes its incomplete report file", () => {
+  const repo = createRepo();
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "delegate-timeout-bin-"));
+  const ocr = fakeOcr(binDir);
+  const delegateSkill = createDelegateSkill(binDir);
+  const reviewer = fakeReviewer(binDir, { repo, report: "late report", delayMs: 3000 });
+  const output = path.join(binDir, "timeout-report.md");
+  const result = run(repo, process.execPath, [
+    reviewScript,
+    "--agent", "kimi",
+    "--ocr-bin", ocr,
+    "--reviewer-bin", reviewer,
+    "--delegate-skill", delegateSkill,
+    "--timeout", "1",
+    "--output", output
+  ]);
+  assert.equal(result.status, 3, result.stderr);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /\[adversarial-code-review\] failed/);
+  assert.match(result.stderr, /timed out/);
+  assert.doesNotMatch(result.stderr, /\[adversarial-code-review\] completed/);
+  assert.equal(fs.existsSync(output), false);
 });
 
 test("checks OCR availability before inspecting the repository", () => {
@@ -346,6 +447,7 @@ test("fails when the external reviewer returns no report", () => {
   const ocr = fakeOcr(binDir);
   const delegateSkill = createDelegateSkill(binDir);
   const reviewer = fakeReviewer(binDir, { repo, report: "" });
+  const output = path.join(binDir, "failed-review.md");
   const result = run(repo, process.execPath, [
     reviewScript,
     "--agent",
@@ -355,8 +457,13 @@ test("fails when the external reviewer returns no report", () => {
     "--reviewer-bin",
     reviewer,
     "--delegate-skill",
-    delegateSkill
+    delegateSkill,
+    "--output",
+    output
   ]);
   assert.equal(result.status, 5);
   assert.match(result.stderr, /empty report/);
+  assert.match(result.stderr, /\[adversarial-code-review\] failed/);
+  assert.doesNotMatch(result.stderr, /\[adversarial-code-review\] completed/);
+  assert.equal(fs.existsSync(output), false);
 });

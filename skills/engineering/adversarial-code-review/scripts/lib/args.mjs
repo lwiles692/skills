@@ -13,6 +13,7 @@ const valueOptions = new Set([
   "background",
   "background-file",
   "model",
+  "output",
   "timeout",
   "cwd",
   "repo",
@@ -54,6 +55,7 @@ Options:
   -b, --background <text>             Business context for OCR preview
   -B, --background-file <path>        Business context from Markdown
   --model <id>                        Request a reviewer model
+  --output <path>                     Save the full report to a new file
   --timeout <seconds>                 Review timeout (default: 900)
   --cwd, --repo <path>                Repository to review (default: cwd)
   --ocr-bin <path>                    OCR executable (default: ocr)
@@ -144,6 +146,7 @@ export function parseArgs(argv) {
     timeoutSeconds: positiveInteger(raw.timeout ?? 900, "timeout"),
     cwd: path.resolve(raw.cwd ?? process.cwd()),
     model: raw.model ?? null,
+    output: raw.output ? path.resolve(raw.output) : null,
     ocrBin: raw["ocr-bin"] ?? "ocr",
     reviewerBin: raw["reviewer-bin"] ?? null,
     delegateSkill: raw["delegate-skill"] ?? null
