@@ -1,0 +1,44 @@
+{
+  "skill": "google-dev-standards",
+  "purpose": "Prompts and checkpoints used in the 2026-10-29 paired Codex quality assessment. Additional future quality cases are in quality-cases.json.",
+  "cases": [
+    {
+      "id": "cpp-escaping-reference",
+      "task_prompt": "Review the following C++17 code using Google C++ style, prioritizing correctness. Give concrete findings and a minimal correction. The public signature must remain exactly `void Schedule(std::string id, int& count)`; do not prohibit `int&`, change that interface, or upgrade the toolchain. `Enqueue` runs the callback later, potentially after `Schedule` returns, on a different thread. The caller guarantees `count` remains alive until all callbacks finish and does not access it concurrently with callback execution; callbacks themselves are serialized.\n\n```cpp\n#include <functional>\n#include <iostream>\n#include <string>\n\nvoid Enqueue(std::function<void()> task);\n\nvoid Schedule(std::string id, int& count) {\n  Enqueue([&]() {\n    std::cout << id << '\\n';\n    ++count;\n  });\n}\n```\n",
+      "criteria": [
+        "Identify the dangling reference to id and recommend a lifetime-safe capture.",
+        "Preserve the count increment and input/output int& parameter.",
+        "Preserve the public signature and C++17 compatibility without new dependencies."
+      ]
+    },
+    {
+      "id": "go-context-and-error-identity",
+      "task_prompt": "Review the following Go 1.17 code using Google Go style. Give concrete findings and a minimal correction. The public API deliberately hides underlying error identity from callers: preserve `%v` and the `interface{}` result, and do not upgrade the Go toolchain. `Client.Fetch` accepts `context.Context` and a key.\n\n```go\nfunc Fetch(ctx context.Context, c Client, key string) (interface{}, error) {\n    v, err := c.Fetch(context.Background(), key)\n    if err != nil {\n        return nil, fmt.Errorf(\"fetch %q: %v\", key, err)\n    }\n    return v, nil\n}\n```\n",
+      "criteria": [
+        "Identify the loss of caller context and pass ctx to the client.",
+        "Preserve %v and the contract hiding the underlying error identity.",
+        "Preserve interface{} and Go 1.17 compatibility."
+      ]
+    },
+    {
+      "id": "python-optional-allowlist",
+      "task_prompt": "Fix this new public Python API using Google Python style. The minimum supported version is Python 3.8. When `allowed` is omitted or None, do not filter; an explicitly empty `allowed` permits no names. Preserve order and duplicates. Add version-compatible type annotations, and return corrected Python code only.\n\n```python\ndef select_names(names, allowed=[]):\n    return [name for name in names if not allowed or name in allowed]\n```\n",
+      "criteria": [
+        "Replace the mutable default and distinguish None from an empty allowlist.",
+        "Preserve order and duplicates when filtering.",
+        "Provide public API annotations compatible with Python 3.8."
+      ]
+    },
+    {
+      "id": "markdown-github-readme",
+      "task_prompt": "Fix this README for rendering on GitHub using Google Markdown style. `[TOC]` is not supported in this GitHub README. Preserve the existing setup.md destination and setup commands, and make the code block belong to the first numbered list item. Return corrected Markdown only.\n\n````markdown\n# Widget\n\nThis project demonstrates setup.\n\n[TOC]\n\n## Setup\n\n1. Read [here](setup.md) and run:\n\n```bash\nmake setup\n```\n\n2. Run the tests.\n\n## Troubleshooting\n\nSee the setup guide.\n````\n",
+      "criteria": [
+        "Remove unsupported [TOC].",
+        "Use descriptive link text and preserve setup.md.",
+        "Nest the unchanged command block within the first ordered list item.",
+        "Return only corrected Markdown."
+      ],
+      "additional_check": "Google Markdown list indentation: four-space default."
+    }
+  ]
+}

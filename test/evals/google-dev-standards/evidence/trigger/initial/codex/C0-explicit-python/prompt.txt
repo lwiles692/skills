@@ -1,0 +1,1 @@
+$google-dev-standards Review inventory.py against the Google Python Style Guide. Give concise, actionable findings; do not modify files.

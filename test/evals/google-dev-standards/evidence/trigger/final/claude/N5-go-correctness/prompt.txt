@@ -1,0 +1,1 @@
+Review internal/cache/cache.go for correctness, error handling, and concurrency risks. Explain any bugs; do not modify files.

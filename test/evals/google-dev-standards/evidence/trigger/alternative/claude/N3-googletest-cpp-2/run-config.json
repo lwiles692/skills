@@ -1,0 +1,17 @@
+{
+  "platform": "claude",
+  "id": "N3-googletest-cpp-2",
+  "cwd": "/sanitized/tmp/google-dev-standards-candidate.root-01/claude/N3-googletest-cpp-2/workspace",
+  "command": "/Users/example-user/Library/pnpm/bin/claude --print --output-format stream-json --verbose --no-session-persistence --setting-sources project --strict-mcp-config --permission-mode dontAsk --tools Skill,Read --allowedTools Skill,Read --model 'tianchicc/claude-opus-5-5[1m]' -- \"$(prompt.txt)\"",
+  "environment": {
+    "HOME": "/sanitized/tmp/google-dev-standards-candidate.root-01/claude/N3-googletest-cpp-2/home",
+    "CLAUDE_CONFIG_DIR": "/sanitized/tmp/google-dev-standards-candidate.root-01/claude/N3-googletest-cpp-2/claude-home",
+    "ANTHROPIC_BASE_URL": "http://gateway.invalid:PORT",
+    "ANTHROPIC_AUTH_TOKEN": "<set in process; withheld>",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "timeout_seconds": 150
+}

@@ -1,0 +1,16 @@
+{
+  "versions": {
+    "claude": "2.1.311 (Claude Code)",
+    "codex": "codex-cli 0.164.0"
+  },
+  "claude_model_requested": "tianchicc/claude-opus-5-5[1m]",
+  "claude_backend": "Unverified custom gateway alias; no direct provider attribution",
+  "codex_model_requested": "gpt-6.1-terra",
+  "codex_reasoning_effort": "medium",
+  "candidate_unicode_characters": 167,
+  "candidate_skill_sha256": "3e7a57aaaa39187a1d626064435af090ea55aaeae078c43a81e7daeccc2635cb",
+  "prior_fixture_root": "/var/folders/nr/md_lffl91zz4kbqfgymptqkm0000gn/T/google-dev-standards-retest.jqX3jw1dtg",
+  "prior_skill_snapshot_matches_current_repository": true,
+  "logs": "Each run contains prompt.txt, events.jsonl, stderr.txt, status.json, run-config.json and its isolated project; Codex runs also contain discovery.json and discovery.stderr.txt.",
+  "gateway_reported_list_cost_usd": 0.561273
+}

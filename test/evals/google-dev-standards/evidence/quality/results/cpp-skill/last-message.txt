@@ -1,0 +1,15 @@
+The callback can read a destroyed `id`. The minimal correction is to capture `id` by value and retain the reference to `count`:
+
+```cpp
+void Schedule(std::string id, int& count) {
+  Enqueue([id, &count]() {
+    std::cout << id << '\n';
+    ++count;
+  });
+}
+```
+
+- **Correctness — `Enqueue([&]...)`:** `id` is a local parameter, so it is destroyed when `Schedule` returns. A later callback reads a dangling reference, causing undefined behavior. Capturing it by value gives the callback its own copy. **CPP-040:** Google recommends explicit captures for lambdas that leave their scope and requires referenced objects to remain valid. [Lambda expressions](https://google.github.io/styleguide/cppguide.html#Lambda_expressions)
+- **Interface contract — `count`:** Capturing `count` by reference is safe under the stated lifetime and serialization guarantees. Those requirements should be documented at the public declaration, including that the caller must synchronize any access outside callback execution. **CPP-027 and CPP-048:** retaining a reference beyond the call is discouraged and its lifetime and concurrency requirements should be clear; the fixed public signature is an explicit constraint here. [Inputs and outputs](https://google.github.io/styleguide/cppguide.html#Inputs_and_Outputs), [Comments](https://google.github.io/styleguide/cppguide.html#Comments)
+
+The increment also requires `count` to be below `INT_MAX` when each callback runs; signed overflow would be undefined behavior. No runtime tests were run for this snippet.

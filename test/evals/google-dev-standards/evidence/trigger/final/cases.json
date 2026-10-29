@@ -1,0 +1,52 @@
+{
+  "C0-explicit-python": {
+    "expected": "trigger",
+    "kind": "explicit positive control",
+    "prompt": "$google-dev-standards Review inventory.py against the Google Python Style Guide. Give concise, actionable findings; do not modify files."
+  },
+  "P1-google-python": {
+    "expected": "trigger",
+    "kind": "implicit positive",
+    "prompt": "Review inventory.py against the Google Python Style Guide and give concise, actionable findings. Do not modify files."
+  },
+  "P2-adopted-go": {
+    "expected": "trigger",
+    "kind": "implicit positive with repository adoption",
+    "prompt": "Review internal/cache/cache.go for style and maintainability using the conventions in CONTRIBUTING.md. Give concise findings and do not modify files."
+  },
+  "N1-google-cloud-client": {
+    "expected": "no trigger",
+    "kind": "hard negative",
+    "prompt": "Review cloud_storage.py for correctness and reliability of its Google Cloud Storage Python client usage. Explain important problems and fixes; do not modify files."
+  },
+  "N2-firebase-readme": {
+    "expected": "no trigger",
+    "kind": "hard negative",
+    "prompt": "Review README.md for accuracy and clarity of the Firebase setup instructions. Suggest fixes without editing any files."
+  },
+  "N3-googletest-cpp": {
+    "expected": "no trigger",
+    "kind": "hard negative",
+    "prompt": "Review parser_test.cc, a GoogleTest C++ fixture, for test correctness, isolation, and useful assertions. Suggest changes; do not modify files."
+  },
+  "N4-python-pep8": {
+    "expected": "no trigger",
+    "kind": "hard negative",
+    "prompt": "Review serializer.py for PEP 8 compliance and report the highest-impact issues. Do not modify files."
+  },
+  "N5-go-correctness": {
+    "expected": "no trigger",
+    "kind": "hard negative",
+    "prompt": "Review internal/cache/cache.go for correctness, error handling, and concurrency risks. Explain any bugs; do not modify files."
+  },
+  "N6-llvm-cpp": {
+    "expected": "no trigger",
+    "kind": "hard negative, different style guide",
+    "prompt": "Review lexer.cc for compliance with the LLVM Coding Standards. Give concise findings; do not modify files."
+  },
+  "N7-google-java": {
+    "expected": "no trigger",
+    "kind": "hard negative, unsupported language",
+    "prompt": "Review Parser.java for compliance with Google Java Style. Give concise findings; do not modify files."
+  }
+}

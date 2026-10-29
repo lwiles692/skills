@@ -1,0 +1,11 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-gcflags=-lang=go1.17",
+    "."
+  ],
+  "exit_code": 0,
+  "stdout": "ok  \t_/sanitized/tmp/google-dev-standards-eval.root-02/checks/go-skill\t0.192s\n",
+  "stderr": ""
+}

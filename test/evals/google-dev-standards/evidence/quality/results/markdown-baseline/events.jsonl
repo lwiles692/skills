@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"00000000-0000-0000-0000-00000000000f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"# Widget\n\nThis project demonstrates setup.\n\n## Contents\n\n- [Setup](#setup)\n- [Troubleshooting](#troubleshooting)\n\n## Setup\n\n1. Read the [setup guide](setup.md) and run:\n\n   ```bash\n   make setup\n   ```\n\n2. Run the tests.\n\n## Troubleshooting\n\nSee the setup guide."}}
+{"type":"turn.completed","usage":{"input_tokens":13760,"cached_input_tokens":12032,"cache_write_input_tokens":0,"output_tokens":76,"reasoning_output_tokens":0}}

@@ -1,0 +1,6 @@
+interface:
+  display_name: Google 多语言开发规范
+  short_description: 依据 Google 官方指南编写、重构和审查 C++、Go、Python 与 Markdown
+  default_prompt: 请使用 $google-dev-standards，依据项目约束检查当前改动，给出带规则编号、依据和验证结果的最小修正。
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg

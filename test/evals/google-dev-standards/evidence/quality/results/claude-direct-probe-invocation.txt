@@ -1,0 +1,1 @@
+claude -p --restricted --setting-sources project --strict-mcp-config --no-session-persistence --tools  --model claude-sonnet-4-5 --output-format json Reply with exactly: access confirmed.

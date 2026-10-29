@@ -1,0 +1,1 @@
+Review internal/cache/cache.go for style and maintainability using the conventions in CONTRIBUTING.md. Give concise findings and do not modify files.

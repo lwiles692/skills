@@ -1,0 +1,17 @@
+# Widget
+
+This project demonstrates setup.
+
+## Setup
+
+1.  Read the [setup guide](setup.md) and run:
+
+    ```bash
+    make setup
+    ```
+
+2.  Run the tests.
+
+## Troubleshooting
+
+See the setup guide.

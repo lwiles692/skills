@@ -1,0 +1,16 @@
+Review the following C++17 code using Google C++ style, prioritizing correctness. Give concrete findings and a minimal correction. The public signature must remain exactly `void Schedule(std::string id, int& count)`; do not prohibit `int&`, change that interface, or upgrade the toolchain. `Enqueue` runs the callback later, potentially after `Schedule` returns, on a different thread. The caller guarantees `count` remains alive until all callbacks finish and does not access it concurrently with callback execution; callbacks themselves are serialized.
+
+```cpp
+#include <functional>
+#include <iostream>
+#include <string>
+
+void Enqueue(std::function<void()> task);
+
+void Schedule(std::string id, int& count) {
+  Enqueue([&]() {
+    std::cout << id << '\n';
+    ++count;
+  });
+}
+```

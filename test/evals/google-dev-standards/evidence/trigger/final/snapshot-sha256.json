@@ -1,0 +1,12 @@
+{
+  ".DS_Store": "09d1ec7ff88c93e0e4dc765a4596164f27ccc321d8f753bc5fdbeb3c8f50fa83",
+  "SKILL.md": "238260208debeffa89c2c0d3f8b59c7e17904aa329eaf64ba3e0325e259c7ae3",
+  "agents/openai.yaml": "1c37b694bd94773b5c559c5641dc5921b8ef260adfac3c210e94ccf8675f318d",
+  "assets/icon.svg": "8936b24f674a1250d999e2c2b5901374fb4240426f32bd1ae340c352a90d617d",
+  "references/cpp.md": "b3bbb1c0bf544025976599473683a345950d18310d435fc96e69c1b1b165421f",
+  "references/go.md": "afef698df07726bfd29f7a1ad0f5600c4ac2429a1e0aafd212386130695b1797",
+  "references/markdown.md": "347f5de83f66d76a486201a4d97f31d9af1882e67c5ddd45918d980cbdce799f",
+  "references/python.md": "38695b3c08b83afd7c61ea11349e1e30089a3448765bd9a2d38b925b9b1f2fff",
+  "references/sources.md": "2f13ec78d018308f933b751e411dee657e2497d146128191d808b96bf143eae0",
+  "references/verification.md": "ef87c642b394ae42b1e52ce2037a2d5fe0029dd8df7827bde2a7873065280066"
+}

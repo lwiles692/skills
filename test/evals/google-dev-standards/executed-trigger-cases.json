@@ -1,0 +1,88 @@
+{
+  "skill": "google-dev-standards",
+  "purpose": "Exact project fixtures and implicit prompts used in the 2026-10-29 automatic triggering matrix.",
+  "cases": [
+    {
+      "id": "P1-google-python",
+      "prompt": "Review inventory.py against the Google Python Style Guide and give concise, actionable findings. Do not modify files.",
+      "should_trigger": true,
+      "kind": "implicit positive",
+      "files": {
+        "inventory.py": "import json,os\n\n\ndef fetchRecord(path):\n    \"\"\"Read a record.\"\"\"\n    with open(path) as file:\n        return json.load(file)\n"
+      }
+    },
+    {
+      "id": "P2-adopted-go",
+      "prompt": "Review internal/cache/cache.go for style and maintainability using the conventions in CONTRIBUTING.md. Give concise findings and do not modify files.",
+      "should_trigger": true,
+      "kind": "implicit positive with repository adoption",
+      "files": {
+        "CONTRIBUTING.md": "# Contributing\n\nThis repository adopts the Google Go Style Guide. All Go contributions and reviews should follow the Google Go Style Guide and gofmt. Guide: https://google.github.io/styleguide/go/guide\n",
+        "internal/cache/cache.go": "package cache\n\nimport \"fmt\"\n\nfunc Get(ID string) (string, error) {\n    if ID == \"\" { return \"\", fmt.Errorf(\"Empty ID\") }\n    return ID, nil\n}\n"
+      }
+    },
+    {
+      "id": "N1-google-cloud-client",
+      "prompt": "Review cloud_storage.py for correctness and reliability of its Google Cloud Storage Python client usage. Explain important problems and fixes; do not modify files.",
+      "should_trigger": false,
+      "kind": "hard negative",
+      "files": {
+        "cloud_storage.py": "from google.cloud import storage\n\n\ndef upload(bucket_name, blob_name, path):\n    client = storage.Client()\n    bucket = client.get_bucket(bucket_name)\n    blob = bucket.blob(blob_name)\n    blob.upload_from_filename(path)\n    return blob.public_url\n"
+      }
+    },
+    {
+      "id": "N2-firebase-readme",
+      "prompt": "Review README.md for accuracy and clarity of the Firebase setup instructions. Suggest fixes without editing any files.",
+      "should_trigger": false,
+      "kind": "hard negative",
+      "files": {
+        "README.md": "# Firebase setup\n\nInstall the Firebase CLI with `npm install -g firebase-tools`. Run `firebase login` then `firebase init` in this directory. Deploy with `firebase deploy`. Never commit service account keys.\n"
+      }
+    },
+    {
+      "id": "N3-googletest-cpp",
+      "prompt": "Review parser_test.cc, a GoogleTest C++ fixture, for test correctness, isolation, and useful assertions. Suggest changes; do not modify files.",
+      "should_trigger": false,
+      "kind": "hard negative",
+      "files": {
+        "parser_test.cc": "#include <gtest/gtest.h>\n#include <string>\n\nclass ParserTest : public ::testing::Test {\n protected:\n  std::string input = \"alpha,beta\";\n};\n\nTEST_F(ParserTest, ParsesFields) {\n  EXPECT_FALSE(input.empty());\n}\n"
+      }
+    },
+    {
+      "id": "N4-python-pep8",
+      "prompt": "Review serializer.py for PEP 8 compliance and report the highest-impact issues. Do not modify files.",
+      "should_trigger": false,
+      "kind": "hard negative",
+      "files": {
+        "serializer.py": "import json,os\n\n\ndef fetchRecord(path):\n    \"\"\"Read a record.\"\"\"\n    with open(path) as file:\n        return json.load(file)\n"
+      }
+    },
+    {
+      "id": "N5-go-correctness",
+      "prompt": "Review internal/cache/cache.go for correctness, error handling, and concurrency risks. Explain any bugs; do not modify files.",
+      "should_trigger": false,
+      "kind": "hard negative",
+      "files": {
+        "internal/cache/cache.go": "package cache\n\nimport \"errors\"\n\ntype Cache struct { entries map[string]string }\nfunc (c *Cache) Get(key string) (string, error) {\n    if key == \"\" { return \"\", errors.New(\"empty key\") }\n    return c.entries[key], nil\n}\nfunc (c *Cache) Put(key, value string) { c.entries[key] = value }\n"
+      }
+    },
+    {
+      "id": "N6-llvm-cpp",
+      "prompt": "Review lexer.cc for compliance with the LLVM Coding Standards. Give concise findings; do not modify files.",
+      "should_trigger": false,
+      "kind": "hard negative, different style guide",
+      "files": {
+        "lexer.cc": "#include <string>\n\nint countWords(const std::string &input) {\n  int Count = 0;\n  for (char c : input) if (c == ' ') ++Count;\n  return Count + 1;\n}\n"
+      }
+    },
+    {
+      "id": "N7-google-java",
+      "prompt": "Review Parser.java for compliance with Google Java Style. Give concise findings; do not modify files.",
+      "should_trigger": false,
+      "kind": "hard negative, unsupported language",
+      "files": {
+        "Parser.java": "public class Parser {\n    public static int parseNumber(String raw) {\n        return Integer.parseInt(raw.trim());\n    }\n}\n"
+      }
+    }
+  ]
+}

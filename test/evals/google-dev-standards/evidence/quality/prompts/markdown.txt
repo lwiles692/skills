@@ -1,0 +1,23 @@
+Fix this README for rendering on GitHub using Google Markdown style. `[TOC]` is not supported in this GitHub README. Preserve the existing setup.md destination and setup commands, and make the code block belong to the first numbered list item. Return corrected Markdown only.
+
+````markdown
+# Widget
+
+This project demonstrates setup.
+
+[TOC]
+
+## Setup
+
+1. Read [here](setup.md) and run:
+
+```bash
+make setup
+```
+
+2. Run the tests.
+
+## Troubleshooting
+
+See the setup guide.
+````

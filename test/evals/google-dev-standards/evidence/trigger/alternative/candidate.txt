@@ -1,0 +1,1 @@
+依据 Google 风格指南编写、重构、审查 C++、Go、Python 与 Markdown；仅当用户要求或项目明确采用时使用。GoogleTest 等产品名本身不够。 Use for requested or adopted Google style guide work, not merely Google products.

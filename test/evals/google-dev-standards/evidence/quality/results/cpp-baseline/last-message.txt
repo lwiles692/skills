@@ -1,0 +1,23 @@
+The callback captures `id` by reference, but `id` is a local parameter destroyed when `Schedule` returns. If the callback runs later, reading it is undefined behavior.
+
+Capture `id` by value and keep `count` by reference:
+
+```cpp
+#include <functional>
+#include <iostream>
+#include <string>
+#include <utility>
+
+void Enqueue(std::function<void()> task);
+
+void Schedule(std::string id, int& count) {
+  Enqueue([id = std::move(id), &count]() {
+    std::cout << id << '\n';
+    ++count;
+  });
+}
+```
+
+The caller’s lifetime and synchronization guarantees make the reference to `count` safe under the stated conditions; it does not need to be atomic. Moving `id` into the callback preserves it after `Schedule` returns and avoids an additional string copy.
+
+One separate correctness limit remains: `++count` has undefined behavior if `count` is already `INT_MAX`. If that value is possible, the code needs a defined overflow policy.

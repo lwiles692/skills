@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "test_solution.py"
+  ],
+  "exit_code": 0,
+  "stdout": "all filter cases and runtime annotations passed\n",
+  "stderr": "",
+  "python_38_syntax_parse": true
+}

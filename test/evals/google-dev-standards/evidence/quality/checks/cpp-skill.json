@@ -1,0 +1,26 @@
+{
+  "compile": {
+    "command": [
+      "clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "test.cc",
+      "-o",
+      "test"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "run": {
+    "command": [
+      "./test"
+    ],
+    "exit_code": 0,
+    "stdout": "value-survives-return\n",
+    "stderr": ""
+  },
+  "expected_output": true
+}

@@ -1,0 +1,12 @@
+{
+  "discovery": {
+    "status": "finished",
+    "returncode": 0,
+    "duration_seconds": 1.93
+  },
+  "run": {
+    "status": "finished",
+    "returncode": 0,
+    "duration_seconds": 18.7
+  }
+}

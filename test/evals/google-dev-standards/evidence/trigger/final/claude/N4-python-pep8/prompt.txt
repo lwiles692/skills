@@ -1,0 +1,1 @@
+Review serializer.py for PEP 8 compliance and report the highest-impact issues. Do not modify files.

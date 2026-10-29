@@ -1,0 +1,22 @@
+{
+  "codex": {
+    "version": "0.164.0",
+    "auth_mode": "ChatGPT auth.json copied privately into each temporary CODEX_HOME",
+    "provider": "OpenAI default provider, ChatGPT authentication",
+    "model": "gpt-6.1-terra",
+    "reasoning_effort": "medium",
+    "session": "ephemeral, fresh per case",
+    "sandbox": "read-only",
+    "user_config": "ignored",
+    "other_user_skills": "isolated HOME and CODEX_HOME"
+  },
+  "claude": {
+    "version": "2.1.311",
+    "endpoint": "local custom gateway, gateway.invalid:PORT",
+    "requested_model": "tianchicc/claude-opus-5-5[1m]",
+    "actual_backend": "unverified; gateway alias alone is not proof",
+    "session": "no-session-persistence, fresh per case",
+    "user_config": "selected gateway variables only, secrets not recorded",
+    "skill_path": ".claude/skills/google-dev-standards symlinked to identical .agents snapshot"
+  }
+}

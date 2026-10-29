@@ -1,0 +1,17 @@
+**Finding — `c.Fetch` call, GO-035 (default):** The function discards the caller’s `ctx` and passes `context.Background()`. As a result, the client cannot receive the caller’s cancellation, deadline, or context values. Pass `ctx` through. See Google’s [context guidance](https://google.github.io/styleguide/go/decisions#contexts).
+
+The minimal correction preserves the Go 1.17 signature and the deliberate use of `%v`:
+
+```go
+func Fetch(ctx context.Context, c Client, key string) (interface{}, error) {
+	v, err := c.Fetch(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("fetch %q: %v", key, err)
+	}
+	return v, nil
+}
+```
+
+Passing `ctx` allows the client to observe cancellation; whether its operation actually stops depends on the client implementation. The `%v` is appropriate for the stated error contract and does not expose the underlying error through unwrapping. The excerpt does not establish whether the exported function has a documentation comment elsewhere.
+
+This is a review of the supplied snippet; no tests were run. The skill’s style summary was last verified on 2026-10-28.

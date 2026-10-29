@@ -1,0 +1,11 @@
+Review the following Go 1.17 code using Google Go style. Give concrete findings and a minimal correction. The public API deliberately hides underlying error identity from callers: preserve `%v` and the `interface{}` result, and do not upgrade the Go toolchain. `Client.Fetch` accepts `context.Context` and a key.
+
+```go
+func Fetch(ctx context.Context, c Client, key string) (interface{}, error) {
+    v, err := c.Fetch(context.Background(), key)
+    if err != nil {
+        return nil, fmt.Errorf("fetch %q: %v", key, err)
+    }
+    return v, nil
+}
+```

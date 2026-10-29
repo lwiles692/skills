@@ -1,0 +1,1 @@
+Review inventory.py against the Google Python Style Guide and give concise, actionable findings. Do not modify files.

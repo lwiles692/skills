@@ -1,0 +1,15 @@
+The main issue is that `Fetch` discards the caller’s context. Passing `context.Background()` prevents `Client.Fetch` from receiving the caller’s cancellation, deadline, and context values. Google’s guidance is to propagate contexts through the call chain. [Google Go style: contexts](https://google.github.io/styleguide/go/decisions.html#contexts)
+
+A minimal correction is to pass `ctx`:
+
+```go
+func Fetch(ctx context.Context, c Client, key string) (interface{}, error) {
+    v, err := c.Fetch(ctx, key)
+    if err != nil {
+        return nil, fmt.Errorf("fetch %q: %v", key, err)
+    }
+    return v, nil
+}
+```
+
+The existing error message adds useful operation and key context. Keeping `%v` preserves the stated API boundary: callers cannot inspect the underlying error with `errors.Is` or `errors.As`, including when it represents cancellation. The `interface{}` result remains valid in Go 1.17.

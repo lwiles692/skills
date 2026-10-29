@@ -1,0 +1,111 @@
+{
+  "skill": "google-dev-standards",
+  "purpose": "Compare task quality with explicit skill use against a no-skill baseline using identical inputs.",
+  "comparison": {
+    "input": "For each case, give task_prompt verbatim to both conditions in fresh, otherwise equivalent sessions. The prompt includes all source and project context needed for the task. If using files, materialize the embedded snippet in the same project-relative file in both sessions.",
+    "isolation": "Prevent both conditions from automatically invoking google-dev-standards. In explicit_skill, make it available only through the explicit invocation; in no_skill_baseline, make it unavailable. Keep other tools, instructions and inputs equivalent.",
+    "conditions": {
+      "explicit_skill": "Explicitly invoke google-dev-standards before submitting the unchanged task prompt.",
+      "no_skill_baseline": "Run the same task prompt with google-dev-standards unavailable or disabled; do not add a skill invocation."
+    },
+    "assessment": "Independently check each criterion against the resulting code or document, whether supplied in a response or a patch. Mark it pass, fail, or not verifiable from the output. Compare the two conditions criterion by criterion; do not require a particular response format or expose the criteria to the model."
+  },
+  "cases": [
+    {
+      "id": "quality-cpp17-escaping-lambda",
+      "language": "cpp",
+      "task_prompt": "Our project follows the Google C++ style guide and targets C++17. Please fix this function with a minimal change. It assigns the current next_id to a callback, advances the caller's next_id once, and the returned callback may be called after MakeIdReporter returns, repeatedly. Keep the public signature and dependencies.\n\n```cpp\n#include <functional>\n\nstd::function<int()> MakeIdReporter(int& next_id) {\n  int id = next_id++;\n  return [&id] { return id; };\n}\n```",
+      "criteria": [
+        {
+          "id": "cpp-lifetime",
+          "check": "The returned callback owns or otherwise safely retains its assigned id after MakeIdReporter returns; it does not retain a reference to the local id."
+        },
+        {
+          "id": "cpp-input-output-reference",
+          "check": "The public function still takes int& next_id and returns std::function<int()>; it does not convert the required input/output reference to a pointer."
+        },
+        {
+          "id": "cpp-observable-behavior",
+          "check": "Starting with next_id = 7, constructing the callback changes next_id to 8; calling that callback repeatedly returns 7 without changing next_id. Two successive callbacks retain their respective assigned ids."
+        },
+        {
+          "id": "cpp-version-dependencies",
+          "check": "The resulting function and includes work with C++17 and introduce no new external dependency or toolchain upgrade."
+        }
+      ]
+    },
+    {
+      "id": "quality-go117-context-opaque-error",
+      "language": "go",
+      "task_prompt": "Our library targets Go 1.17 and follows Google Go style. Fix the context propagation in Lookup without changing its public signature. The error message and the decision not to expose the underlying error for errors.Is or errors.As are intentional API behavior. Keep successful results and the existing dependencies.\n\n```go\npackage store\n\nimport (\n    \"context\"\n    \"fmt\"\n)\n\ntype Fetcher interface {\n    Fetch(context.Context, string) (interface{}, error)\n}\n\nfunc Lookup(ctx context.Context, c Fetcher, key string) (interface{}, error) {\n    value, err := c.Fetch(context.Background(), key)\n    if err != nil {\n        return nil, fmt.Errorf(\"fetch %q: %v\", key, err)\n    }\n    return value, nil\n}\n```",
+      "criteria": [
+        {
+          "id": "go-context",
+          "check": "Lookup passes the supplied ctx to c.Fetch with the same key, so the fetcher sees the caller's values, deadline and cancellation; it does not substitute context.Background()."
+        },
+        {
+          "id": "go-error-contract",
+          "check": "On a Fetch error, Lookup returns nil and the same formatted message as before. For a distinctive custom *FetchError supplied by the fetcher, errors.Is(returned, underlying) is false and errors.As(returned, &target) is false when target is declared var target *FetchError; the underlying error remains opaque."
+        },
+        {
+          "id": "go-success-signatures",
+          "check": "Successful Fetch values are returned unchanged with a nil error; the Fetcher and Lookup public signatures retain interface{} and error."
+        },
+        {
+          "id": "go-version-dependencies",
+          "check": "The resulting code is compatible with Go 1.17, does not use the Go 1.18 any alias or newer APIs, and adds no external dependency."
+        }
+      ]
+    },
+    {
+      "id": "quality-python38-default-and-types",
+      "language": "python",
+      "task_prompt": "This public API targets Python 3.8 and follows the Google Python style guide. Remove the mutable default and add suitable type annotations and a concise docstring while keeping its calling convention and documented filtering behavior. Do not increase the minimum Python version.\n\n```python\ndef filter_names(names, allowed=[]):\n    \"\"\"Filter names; an omitted or empty allowed list excludes every name.\n\n    Passing None explicitly disables filtering.\n    \"\"\"\n    if allowed is None:\n        return list(names)\n    return [name for name in names if name in allowed]\n```",
+      "criteria": [
+        {
+          "id": "python-default-semantics",
+          "check": "For names = ['Ada', 'Bo', 'Ada'], both filter_names(names) and filter_names(names, []) return []; filter_names(names, None) returns ['Ada', 'Bo', 'Ada']."
+        },
+        {
+          "id": "python-filtering-api",
+          "check": "filter_names(names, ['Ada']) returns ['Ada', 'Ada']; the public name and positional and keyword calls remain usable, and input sequences are not mutated."
+        },
+        {
+          "id": "python-safe-default",
+          "check": "The function has no shared mutable default argument, and separate calls cannot affect one another through default state."
+        },
+        {
+          "id": "python-annotations-version",
+          "check": "The public parameters and return value have meaningful type annotations, allowed explicitly permits None, and the resulting module imports and runs on Python 3.8 without raising the minimum version."
+        },
+        {
+          "id": "python-docstring",
+          "check": "The docstring accurately distinguishes omitted or empty allowed from explicit None and describes the returned filtered names."
+        }
+      ]
+    },
+    {
+      "id": "quality-github-markdown-readme",
+      "language": "markdown",
+      "task_prompt": "Our documentation follows the Google Markdown style guide, and this README is rendered on GitHub. Fix the table of contents, setup link text, and list rendering while retaining the existing sections and command. setup.md exists next to this README.\n\n````markdown\n# Cache service\n\nRun the cache service locally.\n\n[TOC]\n\n## Setup\n\nSee [here](setup.md).\n\n1. Start the cache.\n\n```bash\n./cache serve\n```\n\n2. Check its status.\n\n## Troubleshooting\n\nInspect the logs if the service does not start.\n````",
+      "criteria": [
+        {
+          "id": "markdown-toc",
+          "check": "The unsupported [TOC] placeholder is gone; the README provides a GitHub-compatible table of contents with working links to the Setup and Troubleshooting headings."
+        },
+        {
+          "id": "markdown-link",
+          "check": "The relative link still targets setup.md and its link text describes the setup documentation rather than saying 'here' or using a bare URL."
+        },
+        {
+          "id": "markdown-list-fence",
+          "check": "The bash fenced code block is indented within the first ordered-list item on GitHub; ./cache serve is unchanged, and checking the status remains the second item of the same list."
+        },
+        {
+          "id": "markdown-content",
+          "check": "The document retains one Cache service top-level heading and the Setup and Troubleshooting sections and their substantive guidance."
+        }
+      ]
+    }
+  ]
+}

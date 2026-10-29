@@ -1,0 +1,11 @@
+{
+  "case": "go",
+  "variant": "baseline",
+  "model_requested": "gpt-6.1-terra",
+  "timeout_seconds": 120,
+  "start_unix": 1793246005.597662,
+  "prompt": "/sanitized/tmp/google-dev-standards-eval.root-05/prompts/go.txt",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 16.05
+}

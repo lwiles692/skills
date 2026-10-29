@@ -1,0 +1,21 @@
+```python
+from typing import Iterable, List, Optional
+
+
+def select_names(
+    names: Iterable[str], allowed: Optional[Iterable[str]] = None
+) -> List[str]:
+    """Returns names permitted by allowed, preserving order and duplicates.
+
+    Args:
+        names: Names to select from.
+        allowed: Permitted names, or None to allow every name.
+
+    Returns:
+        The selected names in their original order.
+    """
+    if allowed is None:
+        return list(names)
+    allowed_names = set(allowed)
+    return [name for name in names if name in allowed_names]
+```

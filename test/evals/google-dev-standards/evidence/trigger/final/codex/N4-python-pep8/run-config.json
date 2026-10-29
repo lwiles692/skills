@@ -1,0 +1,16 @@
+{
+  "platform": "codex",
+  "id": "N4-python-pep8",
+  "cwd": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/workspace",
+  "command": "/Users/example-user/Library/pnpm/bin/codex exec --ephemeral --ignore-user-config --ignore-rules --sandbox read-only --json --skip-git-repo-check --cd /sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/workspace --model gpt-6.1-terra -c features.apps=false -c features.plugins=false -c 'model_reasoning_effort=\"medium\"' - < prompt.txt",
+  "discovery_command": "/Users/example-user/Library/pnpm/bin/codex debug prompt-input -c features.apps=false -c features.plugins=false -c 'model_reasoning_effort=\"medium\"' \"$(prompt.txt)\"",
+  "environment": {
+    "HOME": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/home",
+    "CODEX_HOME": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/codex-home",
+    "XDG_CONFIG_HOME": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/home/.config",
+    "XDG_CACHE_HOME": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/home/.cache",
+    "XDG_DATA_HOME": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/home/.local/share",
+    "TMPDIR": "/sanitized/tmp/google-dev-standards-retest.root-04/codex/N4-python-pep8/home"
+  },
+  "timeout_seconds": 150
+}

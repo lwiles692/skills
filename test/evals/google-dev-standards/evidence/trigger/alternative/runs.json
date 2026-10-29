@@ -1,0 +1,71 @@
+[
+  {
+    "platform": "claude",
+    "id": "P1-google-python-1",
+    "case": "P1-google-python",
+    "expected": "trigger",
+    "fixture_sha256": "e55ef4c49ffb1276989fc8af239106c66071e0216346ac0a94721a72219a9d9f"
+  },
+  {
+    "platform": "claude",
+    "id": "P1-google-python-2",
+    "case": "P1-google-python",
+    "expected": "trigger",
+    "fixture_sha256": "e55ef4c49ffb1276989fc8af239106c66071e0216346ac0a94721a72219a9d9f"
+  },
+  {
+    "platform": "claude",
+    "id": "P1-google-python-3",
+    "case": "P1-google-python",
+    "expected": "trigger",
+    "fixture_sha256": "e55ef4c49ffb1276989fc8af239106c66071e0216346ac0a94721a72219a9d9f"
+  },
+  {
+    "platform": "claude",
+    "id": "N3-googletest-cpp-1",
+    "case": "N3-googletest-cpp",
+    "expected": "no trigger",
+    "fixture_sha256": "4496e4c76fc6a2419a27c82e3de03d1393c49ba3965f99a5d4df4f98b12e08f1"
+  },
+  {
+    "platform": "claude",
+    "id": "N3-googletest-cpp-2",
+    "case": "N3-googletest-cpp",
+    "expected": "no trigger",
+    "fixture_sha256": "4496e4c76fc6a2419a27c82e3de03d1393c49ba3965f99a5d4df4f98b12e08f1"
+  },
+  {
+    "platform": "codex",
+    "id": "P1-google-python-1",
+    "case": "P1-google-python",
+    "expected": "trigger",
+    "fixture_sha256": "e55ef4c49ffb1276989fc8af239106c66071e0216346ac0a94721a72219a9d9f"
+  },
+  {
+    "platform": "codex",
+    "id": "N3-googletest-cpp-1",
+    "case": "N3-googletest-cpp",
+    "expected": "no trigger",
+    "fixture_sha256": "4496e4c76fc6a2419a27c82e3de03d1393c49ba3965f99a5d4df4f98b12e08f1"
+  },
+  {
+    "platform": "claude",
+    "id": "P2-adopted-go-1",
+    "case": "P2-adopted-go",
+    "expected": "trigger",
+    "fixture_sha256": {
+      "CONTRIBUTING.md": "db557993acb2a0b57992c24745eb7088309dbcf794c0a75fd838c6a658d571a3",
+      "internal/cache/cache.go": "7516ee0e51edd25e80fc9ab855456ffa550634ed70328a400964b2321f607a80"
+    }
+  },
+  {
+    "platform": "claude",
+    "id": "P2-adopted-go-2",
+    "case": "P2-adopted-go",
+    "expected": "trigger",
+    "fixture_sha256": {
+      "CONTRIBUTING.md": "db557993acb2a0b57992c24745eb7088309dbcf794c0a75fd838c6a658d571a3",
+      "internal/cache/cache.go": "7516ee0e51edd25e80fc9ab855456ffa550634ed70328a400964b2321f607a80"
+    }
+  }
+]

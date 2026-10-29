@@ -1,0 +1,1 @@
+Review README.md for accuracy and clarity of the Firebase setup instructions. Suggest fixes without editing any files.

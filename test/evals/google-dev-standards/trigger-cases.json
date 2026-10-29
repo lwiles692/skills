@@ -1,0 +1,138 @@
+{
+  "skill": "google-dev-standards",
+  "purpose": "Natural-language trigger evaluation; submit each prompt without its expected label.",
+  "cases": [
+    {
+      "id": "trigger-en-cpp-requested-style",
+      "language": "en",
+      "prompt": "Could you review src/worker.cc against the Google C++ style guide, especially the object lifetimes?",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-zh-cpp-repo-adoption",
+      "language": "zh",
+      "prompt": "仓库的 CONTRIBUTING.md 写明 C++ 代码采用 Google 风格规范。帮我审查 src/cache.cc 的生命周期和命名。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-en-go-repo-adoption",
+      "language": "en",
+      "prompt": "Our CONTRIBUTING.md adopts the Google Go style guide. Please review internal/store/fetch.go for context handling and style.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-zh-go-requested-style",
+      "language": "zh",
+      "prompt": "请按 Google Go 风格规范重构这个请求处理函数，注意错误处理和 context 传递。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-en-python-requested-style",
+      "language": "en",
+      "prompt": "Please refactor this Python 3.8 public function to follow the Google Python style guide without changing its API behavior.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-zh-python-repo-adoption",
+      "language": "zh",
+      "prompt": "项目约定使用 Google Python 风格指南。帮我给这个公开函数补类型和文档，并检查默认参数。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-en-markdown-repo-adoption",
+      "language": "en",
+      "prompt": "This project's docs follow the Google Markdown style guide. Can you clean up the links and lists in README.md?",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-zh-markdown-requested-style",
+      "language": "zh",
+      "prompt": "请根据 Google Markdown 风格指南审查这份 GitHub README，特别看看目录和代码块。",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-en-multilingual",
+      "language": "en",
+      "prompt": "We follow Google's style guides. Review this Go handler and its Markdown usage documentation before I merge them.",
+      "should_trigger": true
+    },
+    {
+      "id": "trigger-zh-cpp-explain",
+      "language": "zh",
+      "prompt": "Google C++ 风格指南对输入输出参数使用非常量引用有什么规定？请解释适用条件。",
+      "should_trigger": true
+    },
+    {
+      "id": "no-trigger-en-firebase",
+      "language": "en",
+      "prompt": "How can I configure Firebase Authentication to reject an expired ID token in my app?",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-zh-google-cloud",
+      "language": "zh",
+      "prompt": "在 Google Cloud 上怎样给现有 Cloud Run 服务设置最小实例数？",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-en-googletest",
+      "language": "en",
+      "prompt": "My C++ GoogleTest fixture crashes during teardown. Help me debug the test; we use our own project style.",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-zh-java-google-style",
+      "language": "zh",
+      "prompt": "请按 Google Java Style Guide 审查这个 Java 类的格式和命名。",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-en-pep8",
+      "language": "en",
+      "prompt": "Review this Python function for PEP 8 naming and whitespace; our team does not use Google's Python guide.",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-zh-llvm",
+      "language": "zh",
+      "prompt": "这个 C++ 项目采用 LLVM Coding Standards。请按 LLVM 风格整理下面的函数，不要迁移到其他规范。",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-en-vanilla-go-review",
+      "language": "en",
+      "prompt": "Could you review this Go function for a possible goroutine leak and suggest a minimal fix?",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-zh-vanilla-go-review",
+      "language": "zh",
+      "prompt": "帮我审查这个 Go 服务的错误处理，看看是否会丢失取消信号。",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-en-github-markdown",
+      "language": "en",
+      "prompt": "Fix the broken relative link in our GitHub README. Keep the existing documentation style.",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-zh-google-search",
+      "language": "zh",
+      "prompt": "帮我用 Google 搜索 Python 3.8 的安装说明，我只需要官方下载安装页面。",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-en-golangci",
+      "language": "en",
+      "prompt": "Explain why golangci-lint reports an unused variable in this Go file; don't change the lint configuration.",
+      "should_trigger": false
+    },
+    {
+      "id": "no-trigger-zh-google-sheets",
+      "language": "zh",
+      "prompt": "如何在 Google 表格里用公式统计每月订单总数？",
+      "should_trigger": false
+    }
+  ]
+}

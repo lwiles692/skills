@@ -1,0 +1,6 @@
+Fix this new public Python API using Google Python style. The minimum supported version is Python 3.8. When `allowed` is omitted or None, do not filter; an explicitly empty `allowed` permits no names. Preserve order and duplicates. Add version-compatible type annotations, and return corrected Python code only.
+
+```python
+def select_names(names, allowed=[]):
+    return [name for name in names if not allowed or name in allowed]
+```
