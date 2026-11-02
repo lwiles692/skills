@@ -24,6 +24,8 @@ Usage:
 Relative times accept seconds or HH:MM:SS, with up to 3 decimal places.
 Outputs: YYYY-MM-DD_HH-MM-SS-PLATE-BEHAVIOR.mp4, .png, and .txt.
 The MP4 keeps the full frame and source cadence, using H.264 CRF 12.
+Frames with duplicate timestamps are dropped; when a mid-stream seek breaks
+decoding, the clip is re-encoded by decoding from the start of the source.
 The PNG is extracted from the source, without resizing or enhancement.
 The script does not recognize plates or verify that the supplied plate is correct.
 Sources lasting 6-15 seconds are exported in full. Longer event coverage is allowed.
@@ -121,26 +123,43 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 seek=$(as_seconds "$clip_start")
-"$ffmpeg_bin" -hide_banner -loglevel error -nostdin -n \
-  -ss "$seek" -i "$input" -t "$(as_seconds "$clip_duration")" \
-  -map 0:V:0 -map '0:a:0?' -map_metadata 0 \
-  -c:v libx264 -preset slow -crf 12 -fps_mode passthrough \
-  -c:a aac -b:a 192k -movflags +faststart "$temp_dir/result.mp4"
-
-# Decode video alone so a longer audio track cannot disguise a short video.
-progress=$("$ffmpeg_bin" -hide_banner -loglevel error -nostdin \
-  -i "$temp_dir/result.mp4" -map 0:V:0 -an \
-  -progress pipe:1 -nostats -f null -)
+# Input-side seek is fast but starts decoding mid-stream; on sources with
+# broken timestamps the HEVC reference chain can break and drop the first
+# frames. Validate the result and fall back to decoding from the start.
 video_us=''
-while IFS='=' read -r key value; do
-  if [[ $key == out_time_us && $value =~ ^[0-9]+$ ]]; then
-    video_us=$value
+for seek_mode in input output; do
+  if [[ $seek_mode == input ]]; then
+    pre_seek=(-ss "$seek"); post_seek=()
+  else
+    pre_seek=(); post_seek=(-ss "$seek")
   fi
-done <<< "$progress"
-[[ -n $video_us ]] || die 'The encoded clip contains no decodable video.'
-((video_us >= 6000000)) || die 'The decoded video is shorter than 6 s; no output was published.'
-expected_us=$((clip_duration * 1000))
-((video_us >= expected_us - 100000 && video_us <= expected_us + 100000)) || die 'The decoded video does not cover the selected duration (tolerance 0.1 s); no output was published.'
+  rm -f "$temp_dir/result.mp4"
+  "$ffmpeg_bin" -hide_banner -loglevel error -nostdin -n \
+    -fflags +genpts+discardcorrupt ${pre_seek+"${pre_seek[@]}"} -i "$input" \
+    -t "$(as_seconds "$clip_duration")" ${post_seek+"${post_seek[@]}"} \
+    -map 0:V:0 -map '0:a:0?' -map_metadata 0 \
+    -c:v libx264 -preset slow -crf 12 -fps_mode vfr \
+    -avoid_negative_ts make_zero \
+    -c:a aac -b:a 192k -movflags +faststart "$temp_dir/result.mp4"
+
+  # Decode video alone so a longer audio track cannot disguise a short video.
+  progress=$("$ffmpeg_bin" -hide_banner -loglevel error -nostdin \
+    -i "$temp_dir/result.mp4" -map 0:V:0 -an \
+    -progress pipe:1 -nostats -f null -)
+  video_us=''
+  while IFS='=' read -r key value; do
+    if [[ $key == out_time_us && $value =~ ^[0-9]+$ ]]; then
+      video_us=$value
+    fi
+  done <<< "$progress"
+  expected_us=$((clip_duration * 1000))
+  if [[ -n $video_us ]] && ((video_us >= 6000000)) \
+      && ((video_us >= expected_us - 100000 && video_us <= expected_us + 100000)); then
+    break
+  fi
+  video_us=''
+done
+[[ -n $video_us ]] || die 'The decoded video does not cover the selected duration (tolerance 0.1 s); no output was published.'
 
 bash "$script_dir/traffic_video.sh" frame --input "$input" --at "$(as_seconds "$plate_ms")" \
   --output-dir "$temp_dir/plate" --ffmpeg "$ffmpeg_bin" > /dev/null
@@ -159,8 +178,9 @@ plate_source_frame_s=$plate_frame_s
 clip_source_start_s=$seek
 clip_source_end_s=$(as_seconds "$clip_end")
 clip_target_duration_s=$(as_seconds "$clip_duration")
+clip_seek_mode=$seek_mode
 decoded_video_duration_us=$video_us
-encoding=H.264 CRF 12; full frame; source cadence; no enhancement
+encoding=H.264 CRF 12; full frame; source cadence with duplicate timestamps dropped; no enhancement
 plate_validation=Caller must visually verify the source PNG and exported video.
 INFO
 
